@@ -39,11 +39,6 @@ readonly LAN="$(nvram get lan_ipaddr)"
 [ -z "$(nvram get odmpid)" ] && ROUTER_MODEL=$(nvram get productid) || ROUTER_MODEL=$(nvram get odmpid)
 ### End of router environment variables ###
 
-### Start of path variables ###
-readonly DNSCONF="/jffs/configs/dnsmasq.conf.add"
-readonly TMPCONF="/jffs/configs/tmpdnsmasq.conf.add"
-### End of path variables ###
-
 # $1 = print to syslog, $2 = message to print, $3 = log level
 Print_Output(){
 	if [ "$1" = "true" ]; then

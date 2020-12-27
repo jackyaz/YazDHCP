@@ -54,6 +54,324 @@ Print_Output(){
 	fi
 }
 
+Firmware_Version_Check(){
+	if nvram get rc_support | grep -qF "am_addons"; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+### Code for these functions inspired by https://github.com/Adamm00 - credit to @Adamm ###
+Check_Lock(){
+	if [ -f "/tmp/$SCRIPT_NAME.lock" ]; then
+		ageoflock=$(($(date +%s) - $(date +%s -r /tmp/$SCRIPT_NAME.lock)))
+		if [ "$ageoflock" -gt 600 ]; then
+			Print_Output true "Stale lock file found (>600 seconds old) - purging lock" "$ERR"
+			kill "$(sed -n '1p' /tmp/$SCRIPT_NAME.lock)" >/dev/null 2>&1
+			Clear_Lock
+			echo "$$" > "/tmp/$SCRIPT_NAME.lock"
+			return 0
+		else
+			Print_Output true "Lock file found (age: $ageoflock seconds) - stopping to prevent duplicate runs" "$ERR"
+			if [ -z "$1" ]; then
+				exit 1
+			else
+				if [ "$1" = "webui" ]; then
+					exit 1
+				fi
+				return 1
+			fi
+		fi
+	else
+		echo "$$" > "/tmp/$SCRIPT_NAME.lock"
+		return 0
+	fi
+}
+
+Clear_Lock(){
+	rm -f "/tmp/$SCRIPT_NAME.lock" 2>/dev/null
+	return 0
+}
+############################################################################
+
+Set_Version_Custom_Settings(){
+	SETTINGSFILE=/jffs/addons/custom_settings.txt
+	case "$1" in
+		local)
+			if [ -f "$SETTINGSFILE" ]; then
+				if [ "$(grep -c "yazdhcp_version_local" $SETTINGSFILE)" -gt 0 ]; then
+					if [ "$SCRIPT_VERSION" != "$(grep "yazdhcp_version_local" /jffs/addons/custom_settings.txt | cut -f2 -d' ')" ]; then
+						sed -i "s/yazdhcp_version_local.*/yazdhcp_version_local $SCRIPT_VERSION/" "$SETTINGSFILE"
+					fi
+				else
+					echo "yazdhcp_version_local $SCRIPT_VERSION" >> "$SETTINGSFILE"
+				fi
+			else
+				echo "yazdhcp_version_local $SCRIPT_VERSION" >> "$SETTINGSFILE"
+			fi
+		;;
+		server)
+			if [ -f "$SETTINGSFILE" ]; then
+				if [ "$(grep -c "yazdhcp_version_server" $SETTINGSFILE)" -gt 0 ]; then
+					if [ "$2" != "$(grep "yazdhcp_version_server" /jffs/addons/custom_settings.txt | cut -f2 -d' ')" ]; then
+						sed -i "s/yazdhcp_version_server.*/yazdhcp_version_server $2/" "$SETTINGSFILE"
+					fi
+				else
+					echo "yazdhcp_version_server $2" >> "$SETTINGSFILE"
+				fi
+			else
+				echo "yazdhcp_version_server $2" >> "$SETTINGSFILE"
+			fi
+		;;
+	esac
+}
+
+Update_Check(){
+	echo 'var updatestatus = "InProgress";' > "$SCRIPT_WEB_DIR/detect_update.js"
+	doupdate="false"
+	localver=$(grep "SCRIPT_VERSION=" /jffs/scripts/"$SCRIPT_NAME" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
+	/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep -qF "jackyaz" || { Print_Output true "404 error detected - stopping update" "$ERR"; return 1; }
+	serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
+	if [ "$localver" != "$serverver" ]; then
+		doupdate="version"
+		Set_Version_Custom_Settings server "$serverver"
+		echo 'var updatestatus = "'"$serverver"'";'  > "$SCRIPT_WEB_DIR/detect_update.js"
+	else
+		localmd5="$(md5sum "/jffs/scripts/$SCRIPT_NAME" | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | md5sum | awk '{print $1}')"
+		if [ "$localmd5" != "$remotemd5" ]; then
+			doupdate="md5"
+			Set_Version_Custom_Settings server "$serverver-hotfix"
+			echo 'var updatestatus = "'"$serverver-hotfix"'";'  > "$SCRIPT_WEB_DIR/detect_update.js"
+		fi
+	fi
+	if [ "$doupdate" = "false" ]; then
+		echo 'var updatestatus = "None";'  > "$SCRIPT_WEB_DIR/detect_update.js"
+	fi
+	echo "$doupdate,$localver,$serverver"
+}
+
+Update_Version(){
+	if [ -z "$1" ] || [ "$1" = "unattended" ]; then
+		updatecheckresult="$(Update_Check)"
+		isupdate="$(echo "$updatecheckresult" | cut -f1 -d',')"
+		localver="$(echo "$updatecheckresult" | cut -f2 -d',')"
+		serverver="$(echo "$updatecheckresult" | cut -f3 -d',')"
+		
+		if [ "$isupdate" = "version" ]; then
+			Print_Output true "New version of $SCRIPT_NAME available - updating to $serverver" "$PASS"
+		elif [ "$isupdate" = "md5" ]; then
+			Print_Output true "MD5 hash of $SCRIPT_NAME does not match - downloading updated $serverver" "$PASS"
+		fi
+		
+		Update_File shared-jy.tar.gz
+		
+		if [ "$isupdate" != "false" ]; then
+			Update_File Advanced_DHCP_Content.asp
+			
+			/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" -o "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+			chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
+			Clear_Lock
+			if [ -z "$1" ]; then
+				exec "$0" setversion
+			elif [ "$1" = "unattended" ]; then
+				exec "$0" setversion unattended
+			fi
+			exit 0
+		else
+			Print_Output true "No new version - latest is $localver" "$WARN"
+			Clear_Lock
+		fi
+	fi
+	
+	if [ "$1" = "force" ]; then
+		serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
+		Print_Output true "Downloading latest version ($serverver) of $SCRIPT_NAME" "$PASS"
+		Update_File Advanced_DHCP_Content.asp
+		Update_File shared-jy.tar.gz
+		/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" -o "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+		chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
+		Clear_Lock
+		if [ -z "$2" ]; then
+			exec "$0" setversion
+		elif [ "$2" = "unattended" ]; then
+			exec "$0" setversion unattended
+		fi
+		exit 0
+	fi
+}
+
+Update_File(){
+	if [ "$1" = "Advanced_DHCP_Content.asp" ]; then
+		tmpfile="/tmp/$1"
+		Download_File "$SCRIPT_REPO/$1" "$tmpfile"
+		if ! diff -q "$tmpfile" "$SCRIPT_DIR/$1" >/dev/null 2>&1; then
+			Download_File "$SCRIPT_REPO/$1" "$SCRIPT_DIR/$1"
+			Print_Output true "New version of $1 downloaded" "$PASS"
+			Mount_WebUI
+		fi
+		rm -f "$tmpfile"
+	elif [ "$1" = "shared-jy.tar.gz" ]; then
+		if [ ! -f "$SHARED_DIR/$1.md5" ]; then
+			Download_File "$SHARED_REPO/$1" "$SHARED_DIR/$1"
+			Download_File "$SHARED_REPO/$1.md5" "$SHARED_DIR/$1.md5"
+			tar -xzf "$SHARED_DIR/$1" -C "$SHARED_DIR"
+			rm -f "$SHARED_DIR/$1"
+			Print_Output true "New version of $1 downloaded" "$PASS"
+		else
+			localmd5="$(cat "$SHARED_DIR/$1.md5")"
+			remotemd5="$(curl -fsL --retry 3 "$SHARED_REPO/$1.md5")"
+			if [ "$localmd5" != "$remotemd5" ]; then
+				Download_File "$SHARED_REPO/$1" "$SHARED_DIR/$1"
+				Download_File "$SHARED_REPO/$1.md5" "$SHARED_DIR/$1.md5"
+				tar -xzf "$SHARED_DIR/$1" -C "$SHARED_DIR"
+				rm -f "$SHARED_DIR/$1"
+				Print_Output true "New version of $1 downloaded" "$PASS"
+			fi
+		fi
+	else
+		return 1
+	fi
+}
+Create_Dirs(){
+	if [ ! -d "$SCRIPT_DIR" ]; then
+		mkdir -p "$SCRIPT_DIR"
+	fi
+	
+	if [ ! -d "$SCRIPT_STORAGE_DIR" ]; then
+		mkdir -p "$SCRIPT_STORAGE_DIR"
+	fi
+	
+	if [ ! -d "$SHARED_DIR" ]; then
+		mkdir -p "$SHARED_DIR"
+	fi
+	
+	if [ ! -d "$SCRIPT_WEBPAGE_DIR" ]; then
+		mkdir -p "$SCRIPT_WEBPAGE_DIR"
+	fi
+	
+	if [ ! -d "$SCRIPT_WEB_DIR" ]; then
+		mkdir -p "$SCRIPT_WEB_DIR"
+	fi
+}
+
+Create_Symlinks(){
+	rm -rf "${SCRIPT_WEB_DIR:?}/"* 2>/dev/null
+	
+	if [ ! -d "$SHARED_WEB_DIR" ]; then
+		ln -s "$SHARED_DIR" "$SHARED_WEB_DIR" 2>/dev/null
+	fi
+}
+
+Auto_ServiceEvent(){
+	case $1 in
+		create)
+			if [ -f /jffs/scripts/service-event ]; then
+				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/service-event)
+				# shellcheck disable=SC2016
+				STARTUPLINECOUNTEX=$(grep -cx "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" /jffs/scripts/service-event)
+				
+				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
+					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/service-event
+				fi
+				
+				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
+					# shellcheck disable=SC2016
+					echo "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
+				fi
+			else
+				echo "#!/bin/sh" > /jffs/scripts/service-event
+				echo "" >> /jffs/scripts/service-event
+				# shellcheck disable=SC2016
+				echo "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
+				chmod 0755 /jffs/scripts/service-event
+			fi
+		;;
+		delete)
+			if [ -f /jffs/scripts/service-event ]; then
+				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/service-event)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/service-event
+				fi
+			fi
+		;;
+	esac
+}
+
+Auto_Startup(){
+	case $1 in
+		create)
+			if [ -f /jffs/scripts/services-start ]; then
+				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/services-start)
+				STARTUPLINECOUNTEX=$(grep -cx "/jffs/scripts/$SCRIPT_NAME startup"' "$@" & # '"$SCRIPT_NAME" /jffs/scripts/services-start)
+				
+				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
+					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+				fi
+				
+				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
+					echo "/jffs/scripts/$SCRIPT_NAME startup"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/services-start
+				fi
+			else
+				echo "#!/bin/sh" > /jffs/scripts/services-start
+				echo "" >> /jffs/scripts/services-start
+				echo "/jffs/scripts/$SCRIPT_NAME startup"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/services-start
+				chmod 0755 /jffs/scripts/services-start
+			fi
+		;;
+		delete)
+			if [ -f /jffs/scripts/services-start ]; then
+				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/services-start)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+				fi
+			fi
+		;;
+	esac
+}
+
+Download_File(){
+	/usr/sbin/curl -fsL --retry 3 "$1" -o "$2"
+}
+
+Mount_WebUI(){
+	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
+	
+	mount -o bind "$SCRIPT_DIR/Advanced_DHCP_Content.asp" /www/Advanced_DHCP_Content.asp
+}
+
+Shortcut_script(){
+	case $1 in
+		create)
+			if [ -d /opt/bin ] && [ ! -f "/opt/bin/$SCRIPT_NAME" ] && [ -f "/jffs/scripts/$SCRIPT_NAME" ]; then
+				ln -s /jffs/scripts/"$SCRIPT_NAME" /opt/bin
+				chmod 0755 /opt/bin/"$SCRIPT_NAME"
+			fi
+		;;
+		delete)
+			if [ -f "/opt/bin/$SCRIPT_NAME" ]; then
+				rm -f /opt/bin/"$SCRIPT_NAME"
+			fi
+		;;
+	esac
+}
+
+PressEnter(){
+	while true; do
+		printf "Press enter to continue..."
+		read -r key
+		case "$key" in
+			*)
+				break
+			;;
+		esac
+	done
+	return 0
+}
+
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
 	if [ "$(/bin/uname -m)" = "aarch64" ]; then
@@ -87,5 +405,291 @@ Export_FW_DHCP_JFFS(){
 	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp | awk '{ print "dhcp-host="$1","$2","$3""; }' | sed 's/,$//'
 	
 	rm -f /tmp/yazdhcp*.tmp
+	Clear_Lock
 }
-##############
+##################################################################
+
+
+ScriptHeader(){
+	clear
+	printf "\\n"
+	printf "\\e[1m##########################################################\\e[0m\\n"
+	printf "\\e[1m##                                                      ##\\e[0m\\n"
+	printf "\\e[1m##  __     __          _____   _    _   _____  _____    ##\\e[0m\\n"
+	printf "\\e[1m##  \ \   / /         |  __ \ | |  | | / ____||  __ \   ##\\e[0m\\n"
+	printf "\\e[1m##   \ \_/ /__ _  ____| |  | || |__| || |     | |__) |  ##\\e[0m\\n"
+	printf "\\e[1m##    \   // _  ||_  /| |  | ||  __  || |     |  ___/   ##\\e[0m\\n"
+	printf "\\e[1m##     | || (_| | / / | |__| || |  | || |____ | |       ##\\e[0m\\n"
+	printf "\\e[1m##     |_| \__,_|/___||_____/ |_|  |_| \_____||_|       ##\\e[0m\\n"
+	printf "\\e[1m##                                                      ##\\e[0m\\n"
+	printf "\\e[1m##                 %s on %-9s                  ##\\e[0m\\n" "$SCRIPT_VERSION" "$ROUTER_MODEL"
+	printf "\\e[1m##                                                      ##\\e[0m\\n"
+	printf "\\e[1m##          https://github.com/jackyaz/%s         ##\\e[0m\\n" "$SCRIPT_NAME"
+	printf "\\e[1m##                                                  ##\\e[0m\\n"
+	printf "\\e[1m##########################################################\\e[0m\\n"
+	printf "\\n"
+}
+
+MainMenu(){
+	printf "1.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
+	printf "u.    Check for updates\\n"
+	printf "uf.   Update %s with latest version (force update)\\n\\n" "$SCRIPT_NAME"
+	printf "e.    Exit %s\\n\\n" "$SCRIPT_NAME"
+	printf "z.    Uninstall %s\\n" "$SCRIPT_NAME"
+	printf "\\n"
+	printf "\\e[1m##########################################################\\e[0m\\n"
+	printf "\\n"
+	
+	while true; do
+		printf "Choose an option:    "
+		read -r menu
+		case "$menu" in
+			1)
+				if Check_Lock menu; then
+					Export_FW_DHCP_JFFS
+				fi
+				PressEnter
+				break
+			;;
+			u)
+				printf "\\n"
+				if Check_Lock menu; then
+					Menu_Update
+				fi
+				PressEnter
+				break
+			;;
+			uf)
+				printf "\\n"
+				if Check_Lock menu; then
+					Menu_ForceUpdate
+				fi
+				PressEnter
+				break
+			;;
+			e)
+				ScriptHeader
+				printf "\\n\\e[1mThanks for using %s!\\e[0m\\n\\n\\n" "$SCRIPT_NAME"
+				exit 0
+			;;
+			z)
+				while true; do
+					printf "\\n\\e[1mAre you sure you want to uninstall %s? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
+					read -r confirm
+					case "$confirm" in
+						y|Y)
+							Menu_Uninstall
+							exit 0
+						;;
+						*)
+							break
+						;;
+					esac
+				done
+				break
+			;;
+			*)
+				printf "\\nPlease choose a valid option\\n\\n"
+			;;
+		esac
+	done
+	
+	ScriptHeader
+	MainMenu
+}
+
+Menu_Install(){
+	Print_Output true "Welcome to $SCRIPT_NAME $SCRIPT_VERSION, a script by JackYaz"
+	sleep 1
+	
+	Print_Output true "Checking your router meets the requirements for $SCRIPT_NAME"
+	
+	if ! Check_Requirements; then
+		Print_Output true "Requirements for $SCRIPT_NAME not met, please see above for the reason(s)" "$CRIT"
+		PressEnter
+		Clear_Lock
+		rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
+		exit 1
+	fi
+	
+	Create_Dirs
+	Set_Version_Custom_Settings local
+	Create_Symlinks
+	Update_File Advanced_DHCP_Content.asp
+	Update_File shared-jy.tar.gz
+	Auto_Startup create 2>/dev/null
+	Auto_ServiceEvent create 2>/dev/null
+	Shortcut_script create
+	
+	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
+	
+	Clear_Lock
+}
+
+Menu_Startup(){
+	Create_Dirs
+	Set_Version_Custom_Settings "local"
+	Create_Symlinks
+	Auto_Startup create 2>/dev/null
+	Auto_ServiceEvent create 2>/dev/null
+	Shortcut_script create
+	Mount_WebUI
+	Clear_Lock
+}
+
+Menu_Update(){
+	Update_Version
+	Clear_Lock
+}
+
+Menu_ForceUpdate(){
+	Update_Version force
+	Clear_Lock
+}
+
+Menu_Uninstall(){
+	Print_Output true "Removing $SCRIPT_NAME..." "$PASS"
+	Auto_Startup delete 2>/dev/null
+	Auto_ServiceEvent delete 2>/dev/null
+	Shortcut_script delete
+	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
+	rm -rf "$SCRIPT_DIR" 2>/dev/null
+	rm -rf "$SCRIPT_WEB_DIR" 2>/dev/null
+	rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
+	Clear_Lock
+	Print_Output true "Uninstall completed" "$PASS"
+}
+
+NTP_Ready(){
+	if [ "$1" = "service_event" ] && ! echo "$@" | grep -iq "$SCRIPT_NAME"; then
+		exit 0
+	fi
+	if [ "$(nvram get ntp_ready)" -eq 0 ]; then
+		ntpwaitcount="0"
+		Check_Lock
+		while [ "$(nvram get ntp_ready)" -eq 0 ] && [ "$ntpwaitcount" -lt 300 ]; do
+			ntpwaitcount="$((ntpwaitcount + 1))"
+			if [ "$ntpwaitcount" -eq 60 ]; then
+				Print_Output true "Waiting for NTP to sync..." "$WARN"
+			fi
+			sleep 1
+		done
+		if [ "$ntpwaitcount" -ge 300 ]; then
+			Print_Output true "NTP failed to sync after 5 minutes. Please resolve!" "$CRIT"
+			Clear_Lock
+			exit 1
+		else
+			Print_Output true "NTP synced, $SCRIPT_NAME will now continue" "$PASS"
+			Clear_Lock
+		fi
+	fi
+}
+
+Check_Requirements(){
+	CHECKSFAILED="false"
+	
+	if [ "$(nvram get jffs2_scripts)" -ne 1 ]; then
+		nvram set jffs2_scripts=1
+		nvram commit
+		Print_Output true "Custom JFFS Scripts enabled" "$WARN"
+	fi
+	
+	if ! Firmware_Version_Check; then
+		Print_Output true "Unsupported firmware version detected" "$ERR"
+		Print_Output true "$SCRIPT_NAME requires Merlin 384.15/384.13_4 or Fork 43E5 (or later)" "$ERR"
+		CHECKSFAILED="true"
+	fi
+	
+	if [ "$CHECKSFAILED" = "false" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+NTP_Ready "$@"
+
+if [ -z "$1" ]; then
+	Create_Dirs
+	Set_Version_Custom_Settings local
+	Create_Symlinks
+	Auto_Startup create 2>/dev/null
+	Auto_ServiceEvent create 2>/dev/null
+	Shortcut_script create
+	ScriptHeader
+	MainMenu
+	exit 0
+fi
+
+case "$1" in
+	install)
+		Check_Lock
+		Menu_Install
+		exit 0
+	;;
+	startup)
+		Check_Lock
+		if [ "$2" != "force" ]; then
+			sleep 15
+		fi
+		Menu_Startup
+		exit 0
+	;;
+	service_event)
+		if [ "$2" = "start" ] && echo "$3" | grep -q "$SCRIPT_NAME"; then
+			Check_Lock webui
+			
+			Clear_Lock
+			exit 0
+		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}config" ]; then
+			Conf_FromSettings
+			exit 0
+		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}checkupdate" ]; then
+			Update_Check
+			exit 0
+		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}doupdate" ]; then
+			Update_Version force unattended
+			exit 0
+		fi
+		exit 0
+	;;
+	update)
+		Update_Version unattended
+		exit 0
+	;;
+	forceupdate)
+		Update_Version force unattended
+		exit 0
+	;;
+	setversion)
+		Set_Version_Custom_Settings local
+		Set_Version_Custom_Settings server "$SCRIPT_VERSION"
+		if [ -z "$2" ]; then
+			exec "$0"
+		fi
+		exit 0
+	;;
+	checkupdate)
+		Update_Check
+		exit 0
+	;;
+	uninstall)
+		Check_Lock
+		Menu_Uninstall
+		exit 0
+	;;
+	develop)
+		sed -i 's/^readonly SCRIPT_BRANCH.*$/readonly SCRIPT_BRANCH="develop"/' "/jffs/scripts/$SCRIPT_NAME"
+		Update_Version force
+		exit 0
+	;;
+	stable)
+		sed -i 's/^readonly SCRIPT_BRANCH.*$/readonly SCRIPT_BRANCH="master"/' "/jffs/scripts/$SCRIPT_NAME"
+		Update_Version force
+		exit 0
+	;;
+	*)
+		echo "Command not recognised, please try again"
+		exit 1
+	;;
+esac

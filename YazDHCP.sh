@@ -459,7 +459,7 @@ Export_FW_DHCP_JFFS(){
 	
 	awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
 	
-	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp | awk '{ print "dhcp-host="$1","$2","$3""; }' | sed 's/,$//'
+	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp | awk '{ print ""$1","$2","$3""; }' | sed 's/,$//' > "$SCRIPT_DIR/DHCP_clients"
 	
 	rm -f /tmp/yazdhcp*.tmp
 	Clear_Lock

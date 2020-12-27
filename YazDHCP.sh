@@ -502,6 +502,7 @@ MainMenu(){
 		read -r menu
 		case "$menu" in
 			1)
+				printf "\\n"
 				if Check_Lock menu; then
 					Export_FW_DHCP_JFFS
 				fi

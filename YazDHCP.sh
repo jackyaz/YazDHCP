@@ -234,13 +234,10 @@ Update_File(){
 		return 1
 	fi
 }
+
 Create_Dirs(){
 	if [ ! -d "$SCRIPT_DIR" ]; then
 		mkdir -p "$SCRIPT_DIR"
-	fi
-	
-	if [ ! -d "$SCRIPT_STORAGE_DIR" ]; then
-		mkdir -p "$SCRIPT_STORAGE_DIR"
 	fi
 	
 	if [ ! -d "$SHARED_DIR" ]; then

@@ -325,6 +325,71 @@ Auto_Startup(){
 	esac
 }
 
+Auto_DNSMASQ(){
+	case $1 in
+		create)
+			if [ -f /jffs/configs/dnsmasq.conf.add ]; then
+				CONFCHANGED="false"
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
+				STARTUPLINECOUNTEX=$(grep -cx "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
+					sed -i -e '/# '"${SCRIPT_NAME}_hostnames"'/d' /jffs/configs/dnsmasq.conf.add
+				fi
+				
+				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
+					echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" >> /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
+				STARTUPLINECOUNTEX=$(grep -cx "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
+					sed -i -e '/# '"${SCRIPT_NAME}_staticlist"'/d' /jffs/configs/dnsmasq.conf.add
+				fi
+				
+				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
+					echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" >> /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
+				if [ "$CONFCHANGED" = "true" ]; then
+					service restart_dnsmasq >/dev/null 2>&1
+				fi
+			else
+				echo "" >> /jffs/configs/dnsmasq.conf.add
+				echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" >> /jffs/configs/dnsmasq.conf.add
+				echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" >> /jffs/configs/dnsmasq.conf.add
+				chmod 0644 /jffs/configs/dnsmasq.conf.add
+				service restart_dnsmasq >/dev/null 2>&1
+			fi
+		;;
+		delete)
+			if [ -f /jffs/configs/dnsmasq.conf.add ]; then
+				CONFCHANGED="false"
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/# '"${SCRIPT_NAME}_hostnames"'/d' /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/# '"${SCRIPT_NAME}_staticlist"'/d' /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
+				if [ "$CONFCHANGED" = "true" ]; then
+					service restart_dnsmasq >/dev/null 2>&1
+				fi
+			fi
+		;;
+	esac
+}
+
 Download_File(){
 	/usr/sbin/curl -fsL --retry 3 "$1" -o "$2"
 }
@@ -511,6 +576,7 @@ Menu_Install(){
 	Update_File shared-jy.tar.gz
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
+	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_script create
 	
 	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
@@ -524,6 +590,7 @@ Menu_Startup(){
 	Create_Symlinks
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
+	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_script create
 	Mount_WebUI
 	Clear_Lock
@@ -543,6 +610,7 @@ Menu_Uninstall(){
 	Print_Output true "Removing $SCRIPT_NAME..." "$PASS"
 	Auto_Startup delete 2>/dev/null
 	Auto_ServiceEvent delete 2>/dev/null
+	Auto_DNSMASQ delete 2>/dev/null
 	Shortcut_script delete
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -rf "$SCRIPT_DIR" 2>/dev/null
@@ -607,6 +675,7 @@ if [ -z "$1" ]; then
 	Create_Symlinks
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
+	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_script create
 	ScriptHeader
 	MainMenu

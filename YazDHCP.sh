@@ -431,13 +431,13 @@ PressEnter(){
 
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
-	if [ "$(/bin/uname -m)" = "aarch64" ]; then
+	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		sed 's/></\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist > /tmp/yazdhcp-ips.tmp
 	else
 		nvram get dhcp_staticlist | sed 's/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp-ips.tmp
 	fi
 	
-	if [ "$(/bin/uname -m)" = "aarch64" ]; then
+	if [ -f /jffs/nvram/dhcp_hostnames ]; then
 		HOSTNAME_LIST=$(sed 's/>undefined//' /jffs/nvram/dhcp_hostnames)
 	else
 		HOSTNAME_LIST=$(nvram get dhcp_hostnames | sed 's/>undefined//')

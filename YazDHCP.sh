@@ -462,6 +462,22 @@ Export_FW_DHCP_JFFS(){
 	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp | awk '{ print ""$1","$2","$3""; }' | sed 's/,$//' > "$SCRIPT_DIR/DHCP_clients"
 	
 	rm -f /tmp/yazdhcp*.tmp
+	
+	if [ -f /jffs/nvram/dhcp_staticlist ]; then
+		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_dhcp_staticlist"
+	fi
+	
+	#nvram unset dhcp_staticlist
+	
+	if [ -f /jffs/nvram/dhcp_hostnames ]; then
+		cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_dhcp_hostnames"
+	fi
+	
+	#nvram unset dhcp_hostnames
+	
+	#nvram commit
+	
+	Print_Output false "DHCP information successfully exported from nvram" "$PASS"
 	Clear_Lock
 }
 ##################################################################

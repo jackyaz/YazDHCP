@@ -99,7 +99,6 @@ function initial(){
 		manually_dhcp_list_array_ori[dhcp_staticlist_col[1]] = item_para;
 	}
 	
-	//Viz 2011.10{ for LAN ip in DHCP pool or Static list
 	showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
 	if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
 			document.getElementById('router_in_pool').style.display="";
@@ -112,7 +111,6 @@ function initial(){
 			}
 		}
 	}
-	//}Viz 2011.10
 	
 	if(((sortfield = cookie.get('dhcp_sortcol')) != null) && ((sortdir = cookie.get('dhcp_sortmet')) != null)){
 		sortfield = parseInt(sortfield);
@@ -342,7 +340,6 @@ function showdhcp_staticlist(){
 		var clientName, deviceType, deviceVender;
 		
 		for(var i = 0; i < sorted_array.length; i++){
-			//Object.keys(manually_dhcp_list_array).forEach(function(key){
 			var key = sorted_array[i].ip;
 			var clientMac = manually_dhcp_list_array[key]["mac"].toUpperCase();
 			var clientDNS = manually_dhcp_list_array[key]["dns"];
@@ -558,7 +555,6 @@ function validForm(){
 		document.form.dhcp_end.value = tmp;
 	}
 	
-	//Viz 2011.10 check if DHCP pool in default pool{
 	var default_pool = new Array();
 	default_pool = get_default_pool(document.form.lan_ipaddr.value, document.form.lan_netmask.value);
 	if((inet_network(document.form.dhcp_start.value) < inet_network(default_pool[0])) || (inet_network(document.form.dhcp_end.value) > inet_network(default_pool[1]))){
@@ -570,7 +566,6 @@ function validForm(){
 			return false;
 		}
 	}
-	//} Viz 2011.10 check if DHCP pool in default pool
 	
 	if(!validator.range(document.form.dhcp_lease, 120, 604800)){
 		return false;
@@ -586,9 +581,7 @@ function done_validating(action){
 	refreshpage();
 }
 
-// Viz add 2011.10 default DHCP pool range{
 function get_default_pool(ip, netmask){
-	// --- get lan_ipaddr post set .xxx  By Viz 2011.10
 	z=0;
 	tmp_ip=0;
 	for(i=0;i<document.form.lan_ipaddr.value.length;i++){
@@ -596,7 +589,6 @@ function get_default_pool(ip, netmask){
 		if(z==3){ tmp_ip=i+1; break;}
 	}
 	post_lan_ipaddr = document.form.lan_ipaddr.value.substr(tmp_ip,3);
-	// --- get lan_netmask post set .xxx	By Viz 2011.10
 	c=0;
 	tmp_nm=0;
 	for(i=0;i<document.form.lan_netmask.value.length;i++){
@@ -624,11 +616,7 @@ function get_default_pool(ip, netmask){
 			break;
 		}
 	}
-	//alert(document.form.dhcp_start.value+" , "+document.form.dhcp_end.value);//Viz
 }
-// } Viz add 2011.10 default DHCP pool range
-
-//Viz add 2012.02 DHCP client MAC { start
 
 function setClientIP(macaddr, ipaddr){
 	document.form.dhcp_staticmac_x_0.value = macaddr;
@@ -654,7 +642,6 @@ function pullLANIPList(obj){
 	}
 }
 
-//Viz add 2012.02 DHCP client MAC } end
 function check_macaddr(obj,flag){ //control hint of input mac address
 	if(flag == 1){
 		var childsel=document.createElement("div");
@@ -744,7 +731,7 @@ function table_sort(a, b){
 			bb = b.hostname;
 			isIP = 0;
 			break;
-		default:	// IP
+		default: // IP
 			aa = a.ip.split(".");
 			bb = b.ip.split(".");
 			isIP = 1;
@@ -847,14 +834,12 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 <td width="17">&nbsp;</td>
-<!--=====Beginning of Main Menu=====-->
 <td valign="top" width="202">
 <div id="mainMenu"></div>
 <div id="subMenu"></div>
 </td>
 <td valign="top">
 <div id="tabMenu" class="submenuBlock"></div>
-<!--===================================Beginning of Main Content===========================================-->
 <table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
 <tr>
 <td align="left" valign="top">
@@ -993,7 +978,6 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </tr>
 
 <tr>
-<!-- client info -->
 <td width="32%">
 <input type="text" class="input_20_table" maxlength="17" name="dhcp_staticmac_x_0" style="margin-left:-12px;width:170px;" onKeyPress="return validator.isHWAddr(this,event)" onclick="hideClients_Block();" autocorrect="off" autocapitalize="off" placeholder="ex: <% nvram_get("lan_hwaddr"); %>">
 <img id="pull_arrow" height="14px;" src="/images/arrow-down.gif" style="position:absolute;*margin-left:-3px;*margin-top:1px;" onclick="pullLANIPList(this);" title="Select the MAC address of the DHCP client.">
@@ -1019,7 +1003,6 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 
 <div id="dhcp_staticlist_Block"></div>
 
-<!-- manually assigned the DHCP List end-->
 <div class="apply_gen"><input type="button" name="button" class="button_gen" onclick="applyRule();" value="Apply"/></div>
 
 </td>
@@ -1033,7 +1016,6 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </tr>
 </table>
 </form>
-<!--===================================Ending of Main Content===========================================-->
 <div id="footer"></div>
 </body>
 </html>

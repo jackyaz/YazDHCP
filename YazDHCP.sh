@@ -466,13 +466,12 @@ Export_FW_DHCP_JFFS(){
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	fi
-	
 	#nvram unset dhcp_staticlist
 	
 	if [ -f /jffs/nvram/dhcp_hostnames ]; then
 		cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_dhcp_hostnames"
+		#echo "" > /jffs/nvram/dhcp_hostnames
 	fi
-	
 	#nvram unset dhcp_hostnames
 	
 	#nvram commit

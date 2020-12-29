@@ -431,6 +431,25 @@ PressEnter(){
 
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
+	
+	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
+		Print_Output true "DHCP static assignmnents not exported from nvram, no data found" "$PASS"
+		Clear_Lock
+		return 1
+	fi
+	
+	if [ -f /jffs/nvram/dhcp_hostnames ]; then
+		if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+			Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
+			Clear_Lock
+			return 1
+		fi
+	elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
+		Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
+		Clear_Lock
+		return 1
+	fi
+	
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		sed 's/></\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist > /tmp/yazdhcp-ips.tmp
 	else

@@ -497,10 +497,41 @@ Export_FW_DHCP_JFFS(){
 	
 	Print_Output true "DHCP information successfully exported from nvram" "$PASS"
 	
+	Update_Hostnames
+	Update_Staticlist
+	
 	Clear_Lock
 }
 ##################################################################
 
+Update_Hostnames(){
+	existingmd5=""
+	if [ -f "$SCRIPT_DIR/.hostnames" ]; then
+		existingmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
+	fi
+	awk -F',' '{ print ""$2" "$3""; }' "$SCRIPT_DIR/DHCP_clients" > "$SCRIPT_DIR/.hostnames"
+	updatedmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
+	if [ "$existingmd5" != "$updatedmd5" ]; then
+		Print_Output true "DHCP hostname list updated successfully" "$PASS"
+		service restart_dnsmasq >/dev/null 2>&1
+	else
+		Print_Output true "DHCP hostname list unchanged" "$WARN"
+	fi
+}
+
+Update_Staticlist(){
+	if [ -f "$SCRIPT_DIR/.staticlist" ]; then
+		existingmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
+	fi
+	awk -F',' '{ print "dhcp-host="$1",set:"$1","$2""; }' "$SCRIPT_DIR/DHCP_clients" > "$SCRIPT_DIR/.staticlist"
+	updatedmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
+	if [ "$existingmd5" != "$updatedmd5" ]; then
+		Print_Output true "DHCP static assignment list updated successfully" "$PASS"
+		service restart_dnsmasq >/dev/null 2>&1
+	else
+		Print_Output true "DHCP static assignment list unchanged" "$WARN"
+	fi
+}
 
 ScriptHeader(){
 	clear

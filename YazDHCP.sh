@@ -495,7 +495,8 @@ Export_FW_DHCP_JFFS(){
 	
 	#nvram commit
 	
-	Print_Output false "DHCP information successfully exported from nvram" "$PASS"
+	Print_Output true "DHCP information successfully exported from nvram" "$PASS"
+	
 	Clear_Lock
 }
 ##################################################################

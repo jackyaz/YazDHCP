@@ -504,7 +504,7 @@ ScriptHeader(){
 }
 
 MainMenu(){
-	printf "1.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
+	printf "x.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
 	printf "u.    Check for updates\\n"
 	printf "uf.   Update %s with latest version (force update)\\n\\n" "$SCRIPT_NAME"
 	printf "e.    Exit %s\\n\\n" "$SCRIPT_NAME"
@@ -517,7 +517,7 @@ MainMenu(){
 		printf "Choose an option:    "
 		read -r menu
 		case "$menu" in
-			1)
+			x)
 				printf "\\n"
 				if Check_Lock menu; then
 					Export_FW_DHCP_JFFS

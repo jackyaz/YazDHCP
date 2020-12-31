@@ -35,9 +35,9 @@ $(function (){
 var vpnc_dev_policy_list_array = [];
 var vpnc_dev_policy_list_array_ori = [];
 
-var dhcp_staticlist_array = '<% nvram_get("dhcp_staticlist"); %>';
-var manually_dhcp_list_array = new Array();
-var manually_dhcp_list_array_ori = new Array();
+var dhcp_staticlist_array = [];
+var manually_dhcp_list_array = [];
+var manually_dhcp_list_array_ori = [];
 
 if(pptpd_support){
 	var pptpd_clients = '<% nvram_get("pptpd_clients"); %>';
@@ -54,11 +54,9 @@ var pool_start_end = parseInt(pool_start.split(".")[3]);
 var pool_end_end = parseInt(pool_end.split(".")[3]);
 
 var static_enable = '<% nvram_get("dhcp_static_x"); %>';
-var dhcp_staticlists = '<% nvram_get("dhcp_staticlist"); %>';
-var staticclist_row = dhcp_staticlists.split('&#60');
 
-var dhcp_hostnames_array = new Array();
-var manually_dhcp_hosts_array = new Array();
+var dhcp_hostnames_array = [];
+var manually_dhcp_hosts_array = [];
 
 var lan_domain_ori = '<% nvram_get("lan_domain"); %>';
 var dhcp_gateway_ori = '<% nvram_get("dhcp_gateway_x"); %>';
@@ -84,39 +82,55 @@ function initial(){
 	
 	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
 		console.log(data);
-		dhcp_hostnames_array = data.map(function(obj) {
+		if(data.length > 0){
+			dhcp_hostnames_array = data.map(function(obj) {
+				return {
+					MAC: obj.MAC,
+					HOSTNAME: obj.HOSTNAME
+				}
+			});
+			console.log(dhcp_hostnames_array);
+			
+			for(var i = 0; i < dhcp_hostnames_array.length; i++){
+				var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
+				manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
+			}
+			console.log(manually_dhcp_hosts_array);
+		}
+		
+		var dhcp_staticlist_array2 = '<% nvram_get("dhcp_staticlist"); %>';
+		console.log(dhcp_staticlist_array2)
+		
+		dhcp_staticlist_array = data.map(function(obj) {
 			return {
 				MAC: obj.MAC,
-				HOSTNAME: obj.HOSTNAME,
+				IP: obj.IP,
+				DNS: obj.DNS
 			}
 		});
-		console.log(dhcp_hostnames_array);
 		
-		for(var i = 0; i < dhcp_hostnames_array.length; i++){
-			var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
-			manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
-		}
-		console.log(manually_dhcp_hosts_array);
+		console.log(dhcp_staticlist_array)
 		
-		var dhcp_staticlist_row = dhcp_staticlist_array.split('&#60');
-		for(var i = 1; i < dhcp_staticlist_row.length; i+=1){
-			var dhcp_staticlist_col = dhcp_staticlist_row[i].split('&#62');
+		for(var i = 0; i < dhcp_staticlist_array.length; i++){
 			var item_para = {
-				"mac" : dhcp_staticlist_col[0].toUpperCase(),
-				"dns" : (dhcp_staticlist_col[2] == undefined) ? "" : dhcp_staticlist_col[2],
-				"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_col[0]] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_col[0]].hostname,
-				"ip" : dhcp_staticlist_col[1]}; // For sorting purposes
-			manually_dhcp_list_array[dhcp_staticlist_col[1]] = item_para;
-			manually_dhcp_list_array_ori[dhcp_staticlist_col[1]] = item_para;
+				"mac" : dhcp_staticlist_array[i].MAC.toUpperCase(),
+				"dns" : dhcp_staticlist_array[i].DNS,
+				"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC].hostname,
+				"ip" : dhcp_staticlist_array[i].IP}; // For sorting purposes
+			manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
+			manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
 		}
+		
+		console.log(manually_dhcp_list_array)
+		console.log(manually_dhcp_list_array_ori)
 		
 		showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
 		if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
 				document.getElementById('router_in_pool').style.display="";
 		}
-		else if(dhcp_staticlists != ""){
-			for(var i = 1; i < staticclist_row.length; i++){
-				var static_ip = staticclist_row[i].split('&#62')[1];
+		else if(dhcp_staticlist_array.length > 0){
+			for(var i = 0; i < dhcp_staticlist_array.length; i++){
+				var static_ip = dhcp_staticlist_array[i].IP;
 				if(static_ip == document.form.lan_ipaddr.value){
 					document.getElementById('router_in_pool').style.display="";
 				}
@@ -143,24 +157,31 @@ function initial(){
 				document.getElementById("VPN_conflict_span").innerHTML = "* In conflict with the VPN server settings:" + pptpd_clients;
 			}
 		}
-		
-		if(yadns_support){
-			if(yadns_enable != 0 && yadns_mode != -1){
-				document.getElementById("yadns_hint").style.display = "";
-				document.getElementById("yadns_hint").innerHTML = "<span>Clients are using Yandex.DNS regardless of the DNS setting.</span>";
+	});
+	
+	if(yadns_support){
+		if(yadns_enable != 0 && yadns_mode != -1){
+			document.getElementById("yadns_hint").style.display = "";
+			document.getElementById("yadns_hint").innerHTML = "<span>Clients are using Yandex.DNS regardless of the DNS setting.</span>";
+		}
+	}
+	
+	document.form.sip_server.disabled = true;
+	document.form.sip_server.parentNode.parentNode.style.display = "none";
+	
+	if(vpn_fusion_support){
+		vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
+		vpnc_dev_policy_list_array_ori = vpnc_dev_policy_list_array.slice();
+	}
+	
+	if(lyra_hide_support){
+		$("#dhcpEnable").hide();
+	}
+}
+
 			}
 		}
-		
-		document.form.sip_server.disabled = true;
-		document.form.sip_server.parentNode.parentNode.style.display = "none";
-		
-		if(vpn_fusion_support){
-			vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
-			vpnc_dev_policy_list_array_ori = vpnc_dev_policy_list_array.slice();
 		}
-		
-		if(lyra_hide_support){
-			$("#dhcpEnable").hide();
 		}
 	});
 }
@@ -237,7 +258,7 @@ function addRow_Group(upper){
 		manually_dhcp_list_array[document.form.dhcp_staticip_x_0.value.toUpperCase()] = item_para;
 		
 		if(vpn_fusion_support){
-			var newRuleArray = new Array();
+			var newRuleArray = [];
 			newRuleArray.push(document.form.dhcp_staticip_x_0.value);
 			newRuleArray.push("0");
 			newRuleArray.push("0");
@@ -428,17 +449,23 @@ function applyRule(){
 	cancel_Edit();
 	
 	if(validForm()){
-		dhcp_staticlist_array = "";
-		dhcp_hostnames_array = "";
+		dhcp_staticlist_array = [];
+		dhcp_hostnames_array = [];
+		
 		Object.keys(manually_dhcp_list_array).forEach(function(key){
-			dhcp_staticlist_array+="<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].dns;
-			dhcp_hostnames_array+="<" + manually_dhcp_list_array[key].mac + ">" + manually_dhcp_list_array[key].hostname;
+			document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns;
 		});
 		
-		if(dhcp_staticlist_array.length > 2499 || dhcp_hostnames_array.length > 2998){
+		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.substring(1);
+		
+		console.log(document.form.YazDHCP_clients.value);
+		
+		if(document.form.YazDHCP_clients.value.length > 5000){
 			alert("Resulting list of DHCP reservations is too long - remove some, or use shorter names.");
 			return false;
 		}
+		
+		custom_settings["yazdhcp_clients"] = document.form.YazDHCP_clients.value;
 		
 		// Only restart the whole network if needed
 		if ((document.form.dhcp_wins_x.value != dhcp_wins_ori) ||
@@ -451,9 +478,6 @@ function applyRule(){
 			document.form.action_script.value = "restart_dnsmasq";
 			document.form.action_wait.value = 5;
 		}
-		
-		document.form.dhcp_staticlist.value = dhcp_staticlist_array;
-		document.form.dhcp_hostnames.value = dhcp_hostnames_array;
 		
 		if(vpn_fusion_support){
 			if(vpnc_dev_policy_list_array.toString() != vpnc_dev_policy_list_array_ori.toString()){
@@ -495,8 +519,8 @@ function applyRule(){
 			}
 		}
 		
-		showLoading();
-		document.form.submit();
+		//showLoading();
+		//document.form.submit();
 	}
 }
 
@@ -557,7 +581,7 @@ function validForm(){
 		document.form.dhcp_end.value = tmp;
 	}
 	
-	var default_pool = new Array();
+	var default_pool = [];
 	default_pool = get_default_pool(document.form.lan_ipaddr.value, document.form.lan_netmask.value);
 	if((inet_network(document.form.dhcp_start.value) < inet_network(default_pool[0])) || (inet_network(document.form.dhcp_end.value) > inet_network(default_pool[1]))){
 		if(confirm("The new IP Pool does not match the subnet mask. Would you like to allow router to change the IP pool automatically?")){ //Acceptable DHCP ip pool : "+default_pool[0]+"~"+default_pool[1]+"\n
@@ -770,11 +794,11 @@ function check_vpn(){ //true: (DHCP ip pool & static ip ) conflict with VPN clie
 						return true;
 		}
 		
-		if(dhcp_staticlists != ""){
-			for(var i = 1; i < staticclist_row.length; i++){
+		if(dhcp_staticlist_array.length > 0){
+			for(var i = 0; i < dhcp_staticlist_array.length; i++){
 					var static_subnet ="";
 					var static_end ="";
-					var static_ip = staticclist_row[i].split('&#62')[1];
+					var static_ip = dhcp_staticlist_array[i].IP;
 					static_subnet = static_ip.split(".")[0]+"."+static_ip.split(".")[1]+"."+static_ip.split(".")[2]+".";
 					static_end = parseInt(static_ip.split(".")[3]);
 					if(static_subnet == pptpd_clients_subnet
@@ -794,7 +818,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 	for(var i = 0; i < oriNvramRow.length; i+=1){
 		if(oriNvramRow[i] != ""){
 			var oriNvramCol = oriNvramRow[i].split('>');
-			var eachRuleArray = new Array();
+			var eachRuleArray = [];
 			if(oriNvramCol.length == 4){
 				var temp_ipaddr = oriNvramCol[1];
 				var temp_vpnc_idx =  oriNvramCol[3];
@@ -808,9 +832,9 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 	}
 	return parseArray;
 }
+
 </script>
 </head>
-
 <body onload="initial();" onunload="return unload_body();" class="bg">
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
@@ -826,13 +850,12 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <input type="hidden" name="first_time" value="">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="<% nvram_get("preferred_lang"); %>">
 <input type="hidden" name="firmver" value="<% nvram_get("firmver"); %>">
+<input type="hidden" name="amng_custom" id="amng_custom" value="">
 <input type="hidden" name="lan_ipaddr" value="<% nvram_get("lan_ipaddr"); %>">
 <input type="hidden" name="lan_netmask" value="<% nvram_get("lan_netmask"); %>">
-<input type="hidden" name="dhcp_staticlist" value="">
-<input type="hidden" name="dhcp_hostnames" value="">
+<input type="hidden" name="YazDHCP_clients" value="">
 <input type="hidden" name="vpnc_dev_policy_list" value="" disabled>
 <input type="hidden" name="vpnc_dev_policy_list_tmp" value="" disabled>
-
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 <td width="17">&nbsp;</td>

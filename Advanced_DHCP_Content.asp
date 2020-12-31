@@ -38,6 +38,7 @@ var vpnc_dev_policy_list_array_ori = [];
 var dhcp_staticlist_array = '<% nvram_get("dhcp_staticlist"); %>';
 var manually_dhcp_list_array = new Array();
 var manually_dhcp_list_array_ori = new Array();
+
 if(pptpd_support){
 	var pptpd_clients = '<% nvram_get("pptpd_clients"); %>';
 	var pptpd_clients_subnet = pptpd_clients.split(".")[0]+"." + pptpd_clients.split(".")[1]+"." + pptpd_clients.split(".")[2]+".";
@@ -56,7 +57,7 @@ var static_enable = '<% nvram_get("dhcp_static_x"); %>';
 var dhcp_staticlists = '<% nvram_get("dhcp_staticlist"); %>';
 var staticclist_row = dhcp_staticlists.split('&#60');
 
-var dhcp_hostnames_array = "<% nvram_get("dhcp_hostnames"); %>";
+var dhcp_hostnames_array = new Array();
 var manually_dhcp_hosts_array = new Array();
 
 var lan_domain_ori = '<% nvram_get("lan_domain"); %>';
@@ -81,87 +82,87 @@ function initial(){
 	//id="faq" href="https://www.asus.com/US/support/FAQ/1036677"
 	httpApi.faqURL("1036677", function(url){document.getElementById("faq").href=url;});
 	
-	var dhcp_hostnames_row = dhcp_hostnames_array.split('&#60');
-	for(var i = 1; i < dhcp_hostnames_row.length; i+=1){
-		var dhcp_hostnames_col = dhcp_hostnames_row[i].split('&#62');
-		var item_para = {"hostname" : dhcp_hostnames_col[1]};
-		manually_dhcp_hosts_array[dhcp_hostnames_col[0]] = item_para;
-	}
-	
-	var dhcp_staticlist_row = dhcp_staticlist_array.split('&#60');
-	for(var i = 1; i < dhcp_staticlist_row.length; i+=1){
-		var dhcp_staticlist_col = dhcp_staticlist_row[i].split('&#62');
-		var item_para = {
-			"mac" : dhcp_staticlist_col[0].toUpperCase(),
-			"dns" : (dhcp_staticlist_col[2] == undefined) ? "" : dhcp_staticlist_col[2],
-			"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_col[0]] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_col[0]].hostname,
-			"ip" : dhcp_staticlist_col[1]}; // For sorting purposes
-		manually_dhcp_list_array[dhcp_staticlist_col[1]] = item_para;
-		manually_dhcp_list_array_ori[dhcp_staticlist_col[1]] = item_para;
-	}
-	
-	showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
-	if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
-			document.getElementById('router_in_pool').style.display="";
-	}
-	else if(dhcp_staticlists != ""){
-		for(var i = 1; i < staticclist_row.length; i++){
-			var static_ip = staticclist_row[i].split('&#62')[1];
-			if(static_ip == document.form.lan_ipaddr.value){
+	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
+		console.log(data);
+		dhcp_hostnames_array = data.map(function(obj) {
+			return {
+				MAC: obj.MAC,
+				HOSTNAME: obj.HOSTNAME,
+			}
+		});
+		console.log(dhcp_hostnames_array);
+		
+		for(var i = 0; i < dhcp_hostnames_array.length; i++){
+			var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
+			manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
+		}
+		console.log(manually_dhcp_hosts_array);
+		
+		var dhcp_staticlist_row = dhcp_staticlist_array.split('&#60');
+		for(var i = 1; i < dhcp_staticlist_row.length; i+=1){
+			var dhcp_staticlist_col = dhcp_staticlist_row[i].split('&#62');
+			var item_para = {
+				"mac" : dhcp_staticlist_col[0].toUpperCase(),
+				"dns" : (dhcp_staticlist_col[2] == undefined) ? "" : dhcp_staticlist_col[2],
+				"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_col[0]] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_col[0]].hostname,
+				"ip" : dhcp_staticlist_col[1]}; // For sorting purposes
+			manually_dhcp_list_array[dhcp_staticlist_col[1]] = item_para;
+			manually_dhcp_list_array_ori[dhcp_staticlist_col[1]] = item_para;
+		}
+		
+		showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
+		if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
 				document.getElementById('router_in_pool').style.display="";
+		}
+		else if(dhcp_staticlists != ""){
+			for(var i = 1; i < staticclist_row.length; i++){
+				var static_ip = staticclist_row[i].split('&#62')[1];
+				if(static_ip == document.form.lan_ipaddr.value){
+					document.getElementById('router_in_pool').style.display="";
+				}
 			}
 		}
-	}
-	
-	if(((sortfield = cookie.get('dhcp_sortcol')) != null) && ((sortdir = cookie.get('dhcp_sortmet')) != null)){
-		sortfield = parseInt(sortfield);
-		sortdir = parseInt(sortdir) * -1;
-	}
-	else{
-		sortfield = 1;
-		sortdir = -1;
-	}
-	sortlist(sortfield);
-	
-	setTimeout(showdhcp_staticlist, 100);
-	setTimeout("showDropdownClientList('setClientIP', 'mac>ip', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 1000);
-	
-	if(pptpd_support){
-		var chk_vpn = check_vpn();
-		if(chk_vpn == true){
-			document.getElementById("VPN_conflict").style.display = "";
-			document.getElementById("VPN_conflict_span").innerHTML = "* In conflict with the VPN server settings:" + pptpd_clients;
+		
+		if(((sortfield = cookie.get('dhcp_sortcol')) != null) && ((sortdir = cookie.get('dhcp_sortmet')) != null)){
+			sortfield = parseInt(sortfield);
+			sortdir = parseInt(sortdir) * -1;
 		}
-	}
-	
-	if(yadns_support){
-		if(yadns_enable != 0 && yadns_mode != -1){
-			document.getElementById("yadns_hint").style.display = "";
-			document.getElementById("yadns_hint").innerHTML = "<span>Clients are using Yandex.DNS regardless of the DNS setting.</span>";
+		else{
+			sortfield = 1;
+			sortdir = -1;
 		}
-	}
-	
-	document.form.sip_server.disabled = true;
-	document.form.sip_server.parentNode.parentNode.style.display = "none";
-	
-	if(vpn_fusion_support){
-		vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
-		vpnc_dev_policy_list_array_ori = vpnc_dev_policy_list_array.slice();
-	}
-	
-	if(lyra_hide_support){
-		$("#dhcpEnable").hide();
-	}
-}
-
-function get_static_hostname(mac){
-	for (var i = 1; i < dhcp_hostnames_row.length; i++){
-		var entry = dhcp_hostnames_row[i].split('&#62');
-		if(mac == entry[0]){
-			return entry[1];
+		sortlist(sortfield);
+		
+		setTimeout(showdhcp_staticlist, 100);
+		setTimeout("showDropdownClientList('setClientIP', 'mac>ip', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 1000);
+		
+		if(pptpd_support){
+			var chk_vpn = check_vpn();
+			if(chk_vpn == true){
+				document.getElementById("VPN_conflict").style.display = "";
+				document.getElementById("VPN_conflict_span").innerHTML = "* In conflict with the VPN server settings:" + pptpd_clients;
+			}
 		}
-	}
-	return "";
+		
+		if(yadns_support){
+			if(yadns_enable != 0 && yadns_mode != -1){
+				document.getElementById("yadns_hint").style.display = "";
+				document.getElementById("yadns_hint").innerHTML = "<span>Clients are using Yandex.DNS regardless of the DNS setting.</span>";
+			}
+		}
+		
+		document.form.sip_server.disabled = true;
+		document.form.sip_server.parentNode.parentNode.style.display = "none";
+		
+		if(vpn_fusion_support){
+			vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
+			vpnc_dev_policy_list_array_ori = vpnc_dev_policy_list_array.slice();
+		}
+		
+		if(lyra_hide_support){
+			$("#dhcpEnable").hide();
+		}
+	});
 }
 
 function addRow_Group(upper){

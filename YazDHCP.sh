@@ -646,6 +646,7 @@ Menu_Install(){
 	
 	Create_Dirs
 	Set_Version_Custom_Settings local
+	Set_Version_Custom_Settings server "$SCRIPT_VERSION"
 	Create_Symlinks
 	Update_File Advanced_DHCP_Content.asp
 	Update_File shared-jy.tar.gz

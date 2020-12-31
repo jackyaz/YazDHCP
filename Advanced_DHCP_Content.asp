@@ -11,7 +11,17 @@
 <link rel="stylesheet" type="text/css" href="index_style.css">
 <link rel="stylesheet" type="text/css" href="form_style.css">
 <link rel="stylesheet" type="text/css" href="device-map/device-map.css">
-
+<style>
+thead.collapsible-jquery {
+  color: white;
+  padding: 0px;
+  width: 100%;
+  border: none;
+  text-align: left;
+  outline: none;
+  cursor: pointer;
+}
+</style>
 <script language="JavaScript" type="text/javascript" src="/ext/shared-jy/jquery.js"></script>
 <script language="JavaScript" type="text/javascript" src="/ext/shared-jy/d3.js"></script>
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
@@ -26,6 +36,18 @@
 <script language="JavaScript" type="text/javascript" src="/base64.js"></script>
 <script language="JavaScript" type="text/javascript" src="/js/httpApi.js"></script>
 <script>
+var custom_settings;
+function LoadCustomSettings(){
+	custom_settings = <% get_custom_settings(); %>;
+	for (var prop in custom_settings){
+		if (Object.prototype.hasOwnProperty.call(custom_settings, prop)){
+			if(prop.indexOf("YazDHCP") != -1 && prop.indexOf("YazDHCP_version") == -1){
+				eval("delete custom_settings."+prop)
+			}
+		}
+	}
+}
+
 $(function (){
 	if(amesh_support && (isSwMode("rt") || isSwMode("ap")) && ameshRouter_support){
 		addNewScript('/require/modules/amesh.js');
@@ -77,6 +99,9 @@ var sorted_array = Array();
 
 function initial(){
 	show_menu();
+	LoadCustomSettings();
+	ScriptUpdateLayout();
+	AddEventHandlers();
 	//id="faq" href="https://www.asus.com/US/support/FAQ/1036677"
 	httpApi.faqURL("1036677", function(url){document.getElementById("faq").href=url;});
 	
@@ -179,9 +204,125 @@ function initial(){
 	}
 }
 
+function ScriptUpdateLayout(){
+	var localver = GetVersionNumber("local");
+	var serverver = GetVersionNumber("server");
+	$("#scripttitle").text($("#scripttitle").text()+" - "+localver);
+	$("#yazdhcp_version_local").text(localver);
+	
+	if (localver != serverver && serverver != "N/A"){
+		$("#yazdhcp_version_server").text("Updated version available: "+serverver);
+		showhide("btnChkUpdate", false);
+		showhide("yazdhcp_version_server", true);
+		showhide("btnDoUpdate", true);
+	}
+}
+
+function reload(){
+	location.reload(true);
+}
+
+function update_status(){
+	$.ajax({
+		url: '/ext/yazdhcp/detect_update.js',
+		dataType: 'script',
+		timeout: 3000,
+		error:	function(xhr){
+			setTimeout(update_status, 1000);
+		},
+		success: function(){
+			if (updatestatus == "InProgress"){
+				setTimeout(update_status, 1000);
+			}
+			else{
+				document.getElementById("imgChkUpdate").style.display = "none";
+				showhide("yazdhcp_version_server", true);
+				if(updatestatus != "None"){
+					$("#yazdhcp_version_server").text("Updated version available: "+updatestatus);
+					showhide("btnChkUpdate", false);
+					showhide("btnDoUpdate", true);
+				}
+				else{
+					$("#yazdhcp_version_server").text("No update available");
+					showhide("btnChkUpdate", true);
+					showhide("btnDoUpdate", false);
+				}
 			}
 		}
+	});
+}
+
+function CheckUpdate(){
+	showhide("btnChkUpdate", false);
+	document.formScriptActions.action_script.value="start_yazdhcpcheckupdate"
+	document.formScriptActions.submit();
+	document.getElementById("imgChkUpdate").style.display = "";
+	setTimeout(update_status, 2000);
+}
+
+function DoUpdate(){
+	var action_script_tmp = "start_yazdhcpdoupdate";
+	document.form.action_script.value = action_script_tmp;
+	var restart_time = 10;
+	document.form.action_wait.value = restart_time;
+	showLoading();
+	document.form.submit();
+}
+
+function GetVersionNumber(versiontype){
+	var versionprop;
+	if(versiontype == "local"){
+		versionprop = custom_settings.yazdhcp_version_local;
+	}
+	else if(versiontype == "server"){
+		versionprop = custom_settings.yazdhcp_version_server;
+	}
+	
+	if(typeof versionprop == 'undefined' || versionprop == null){
+		return "N/A";
+	}
+	else{
+		return versionprop;
+	}
+}
+
+function GetCookie(cookiename,returntype){
+	var s;
+	if ((s = cookie.get("yazdhcp_"+cookiename)) != null){
+		return cookie.get("yazdhcp_"+cookiename);
+	}
+	else{
+		if(returntype == "string"){
+			return "";
 		}
+		else if(returntype == "number"){
+			return 0;
+		}
+	}
+}
+
+function SetCookie(cookiename,cookievalue){
+	cookie.set("yazdhcp_"+cookiename, cookievalue, 31);
+}
+
+function AddEventHandlers(){
+	$(".collapsible-jquery").click(function(){
+		$(this).siblings().toggle("fast",function(){
+			if($(this).css("display") == "none"){
+				SetCookie($(this).siblings()[0].id,"collapsed");
+			}
+			else{
+				SetCookie($(this).siblings()[0].id,"expanded");
+			}
+		})
+	});
+	
+	$(".collapsible-jquery").each(function(index,element){
+		if(GetCookie($(this)[0].id,"string") == "collapsed"){
+			$(this).siblings().toggle(false);
+		}
+		else{
+			$(this).siblings().toggle(true);
 		}
 	});
 }
@@ -873,12 +1014,34 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <tr>
 <td bgcolor="#4D595D" valign="top">
 <div>&nbsp;</div>
-<div class="formfonttitle">LAN - DHCP Server - Enhanced by YazDHCP</div>
+<div class="formfonttitle" id="scripttitle" style="text-align:center;">LAN - DHCP Server - Enhanced by YazDHCP</div>
 <div style="margin:10px 0 10px 5px;" class="splitLine"></div>
 <div class="formfontdesc">DHCP (Dynamic Host Configuration Protocol) is a protocol for the automatic configuration used on IP networks. The DHCP server can assign each client an IP address and informs the client of the of DNS server IP and default gateway IP. Router supports up to 253 IP addresses for your local network.</div>
 <div id="router_in_pool" class="formfontdesc" style="color:#FFCC00;display:none;">WARNING: The router's IP address is within your pool! <span id="LANIP"></span> </div>
 <div id="VPN_conflict" class="formfontdesc" style="color:#FFCC00;display:none;"><span id="VPN_conflict_span"></span></div>
 <div class="formfontdesc" style="margin-top:-10px;"><a id="faq" href="" target="_blank" style="font-family:Lucida Console;text-decoration:underline;">Manually Assigned IP around the DHCP list&nbsp;FAQ</a></div>
+
+<table width="100%" border="1" align="center" cellpadding="2" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="table_buttons">
+<thead class="collapsible-jquery" id="scripttools">
+<tr><td colspan="2">Utilities (click to expand/collapse)</td></tr>
+</thead>
+<tr>
+<th width="20%">Version information</th>
+<td>
+<span id="yazdhcp_version_local" style="color:#FFFFFF;"></span>
+&nbsp;&nbsp;&nbsp;
+<span id="yazdhcp_version_server" style="display:none;">Update version</span>
+&nbsp;&nbsp;&nbsp;
+<input type="button" class="button_gen" onclick="CheckUpdate();" value="Check" id="btnChkUpdate">
+<img id="imgChkUpdate" style="display:none;vertical-align:middle;" src="images/InternetScan.gif"/>
+<input type="button" class="button_gen" onclick="DoUpdate();" value="Update" id="btnDoUpdate" style="display:none;">
+&nbsp;&nbsp;&nbsp;
+</td>
+</tr>
+</table>
+<div style="line-height:10px;">&nbsp;</div>
+
+
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 
 <thead><tr><td colspan="2">Basic Config</td></tr></thead>
@@ -1040,6 +1203,14 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </td>
 </tr>
 </table>
+</form>
+<form method="post" name="formScriptActions" action="/start_apply.htm" target="hidden_frame">
+<input type="hidden" name="productid" value="<% nvram_get("productid"); %>">
+<input type="hidden" name="current_page" value="">
+<input type="hidden" name="next_page" value="">
+<input type="hidden" name="action_mode" value="apply">
+<input type="hidden" name="action_script" value="">
+<input type="hidden" name="action_wait" value="">
 </form>
 <div id="footer"></div>
 </body>

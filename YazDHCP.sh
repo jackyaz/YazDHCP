@@ -251,6 +251,8 @@ Create_Dirs(){
 Create_Symlinks(){
 	rm -rf "${SCRIPT_WEB_DIR:?}/"* 2>/dev/null
 	
+	ln -s "$SCRIPT_DIR/DHCP_clients"  "$SCRIPT_WEB_DIR/DHCP_clients.htm" 2>/dev/null
+	
 	if [ ! -d "$SHARED_WEB_DIR" ]; then
 		ln -s "$SHARED_DIR" "$SHARED_WEB_DIR" 2>/dev/null
 	fi

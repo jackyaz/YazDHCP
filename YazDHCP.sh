@@ -360,9 +360,7 @@ Auto_DNSMASQ(){
 					service restart_dnsmasq >/dev/null 2>&1
 				fi
 			else
-				echo "" >> /jffs/configs/dnsmasq.conf.add
-				echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" >> /jffs/configs/dnsmasq.conf.add
-				echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" >> /jffs/configs/dnsmasq.conf.add
+				{ echo ""; echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames"; echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist"; } >> /jffs/configs/dnsmasq.conf.add
 				chmod 0644 /jffs/configs/dnsmasq.conf.add
 				service restart_dnsmasq >/dev/null 2>&1
 			fi

@@ -478,7 +478,17 @@ Export_FW_DHCP_JFFS(){
 	
 	awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
 	
-	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp | awk '{ print ""$1","$2","$3""; }' | sed 's/,$//' > "$SCRIPT_DIR/DHCP_clients"
+	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_DIR/DHCP_clients"
+	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
+	
+	while IFS='' read -r line || [ -n "$line" ]; do
+		echo "$line" | wc -w
+		if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
+			echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_DIR/DHCP_clients"
+		else
+			printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')"  >> "$SCRIPT_DIR/DHCP_clients"
+		fi
+	done < /tmp/yazdhcp_sorted.tmp
 	
 	rm -f /tmp/yazdhcp*.tmp
 	
@@ -509,7 +519,7 @@ Update_Hostnames(){
 	if [ -f "$SCRIPT_DIR/.hostnames" ]; then
 		existingmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	fi
-	awk -F',' '{ print ""$2" "$3""; }' "$SCRIPT_DIR/DHCP_clients" > "$SCRIPT_DIR/.hostnames"
+	tail -n +2 "$SCRIPT_DIR/DHCP_clients" | awk -F',' '{ print ""$2" "$3""; }' > "$SCRIPT_DIR/.hostnames"
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP hostname list updated successfully" "$PASS"
@@ -523,7 +533,7 @@ Update_Staticlist(){
 	if [ -f "$SCRIPT_DIR/.staticlist" ]; then
 		existingmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	fi
-	awk -F',' '{ print "dhcp-host="$1",set:"$1","$2""; }' "$SCRIPT_DIR/DHCP_clients" > "$SCRIPT_DIR/.staticlist"
+	tail -n +2 "$SCRIPT_DIR/DHCP_clients" | awk -F',' '{ print "dhcp-host="$1",set:"$1","$2""; }' > "$SCRIPT_DIR/.staticlist"
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP static assignment list updated successfully" "$PASS"
@@ -766,7 +776,6 @@ case "$1" in
 	service_event)
 		if [ "$2" = "start" ] && echo "$3" | grep -q "$SCRIPT_NAME"; then
 			Check_Lock webui
-			
 			Clear_Lock
 			exit 0
 		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}config" ]; then

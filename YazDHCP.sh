@@ -15,7 +15,6 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_CONF="/jffs/addons/$SCRIPT_NAME.d/config"
 readonly SCRIPT_VERSION="v0.0.1"
 readonly SCRIPT_BRANCH="master"
 readonly SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
@@ -35,7 +34,6 @@ readonly PASS="\\e[32m"
 ### End of output format variables ###
 
 ### Start of router environment variables ###
-readonly LAN="$(nvram get lan_ipaddr)"
 [ -z "$(nvram get odmpid)" ] && ROUTER_MODEL=$(nvram get productid) || ROUTER_MODEL=$(nvram get odmpid)
 ### End of router environment variables ###
 

@@ -13,6 +13,7 @@
 <link rel="stylesheet" type="text/css" href="device-map/device-map.css">
 
 <script language="JavaScript" type="text/javascript" src="/ext/shared-jy/jquery.js"></script>
+<script language="JavaScript" type="text/javascript" src="/ext/shared-jy/d3.js"></script>
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>

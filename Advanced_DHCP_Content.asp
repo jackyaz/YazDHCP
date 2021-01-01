@@ -666,8 +666,8 @@ function applyRule(){
 			}
 		}
 		
-		//showLoading();
-		//document.form.submit();
+		showLoading();
+		document.form.submit();
 	}
 }
 

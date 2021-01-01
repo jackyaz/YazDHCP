@@ -126,6 +126,7 @@ Conf_FromSettings(){
 			
 			Update_Hostnames
 			Update_Staticlist
+			Update_Optionslist
 			
 			Print_Output true "Merge of updated DHCP information from WebUI completed successfully" "$PASS"
 		else
@@ -400,11 +401,23 @@ Auto_DNSMASQ(){
 					CONFCHANGED="true"
 				fi
 				
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
+				STARTUPLINECOUNTEX=$(grep -cx "dhcp-optsfile=$SCRIPT_DIR/.optionslist # ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
+					sed -i -e '/# '"${SCRIPT_NAME}_optionslist"'/d' /jffs/configs/dnsmasq.conf.add
+				fi
+				
+				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
+					echo "dhcp-optsfile=$SCRIPT_DIR/.optionslist # ${SCRIPT_NAME}_optionslist" >> /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
 				if [ "$CONFCHANGED" = "true" ]; then
 					service restart_dnsmasq >/dev/null 2>&1
 				fi
 			else
-				{ echo ""; echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames"; echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist"; } >> /jffs/configs/dnsmasq.conf.add
+				{ echo ""; echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames"; echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist"; echo "dhcp-optsfile=$SCRIPT_DIR/.optionslist # ${SCRIPT_NAME}_optionslist"; } >> /jffs/configs/dnsmasq.conf.add
 				chmod 0644 /jffs/configs/dnsmasq.conf.add
 				service restart_dnsmasq >/dev/null 2>&1
 			fi
@@ -423,6 +436,13 @@ Auto_DNSMASQ(){
 				
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"${SCRIPT_NAME}_staticlist"'/d' /jffs/configs/dnsmasq.conf.add
+					CONFCHANGED="true"
+				fi
+				
+				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/# '"${SCRIPT_NAME}_optionslist"'/d' /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
 				
@@ -552,6 +572,7 @@ Export_FW_DHCP_JFFS(){
 	
 	Update_Hostnames
 	Update_Staticlist
+	Update_Optionslist
 	
 	Clear_Lock
 }
@@ -584,6 +605,21 @@ Update_Staticlist(){
 		service restart_dnsmasq >/dev/null 2>&1
 	else
 		Print_Output true "DHCP static assignment list unchanged" "$WARN"
+	fi
+}
+
+Update_Optionslist(){
+	existingmd5=""
+	if [ -f "$SCRIPT_DIR/.optionslist" ]; then
+		existingmd5="$(md5sum "$SCRIPT_DIR/.optionslist" | awk '{print $1}')"
+	fi
+	tail -n +2 "$SCRIPT_CONF" | awk -F',' '$4 != "" { print "tag:"$1",6,"$4""; }' > "$SCRIPT_DIR/.optionslist"
+	updatedmd5="$(md5sum "$SCRIPT_DIR/.optionslist" | awk '{print $1}')"
+	if [ "$existingmd5" != "$updatedmd5" ]; then
+		Print_Output true "DHCP options list updated successfully" "$PASS"
+		service restart_dnsmasq >/dev/null 2>&1
+	else
+		Print_Output true "DHCP options list unchanged" "$WARN"
 	fi
 }
 

@@ -624,6 +624,9 @@ function applyRule(){
 			document.form.action_wait.value = 5;
 		}
 		
+		var action_script_tmp = "start_YazDHCP;" + document.form.action_script.value;
+		document.form.action_script.value = action_script_tmp;
+		
 		if(vpn_fusion_support){
 			if(vpnc_dev_policy_list_array.toString() != vpnc_dev_policy_list_array_ori.toString()){
 				var action_script_tmp = "restart_vpnc_dev_policy;" + document.form.action_script.value;

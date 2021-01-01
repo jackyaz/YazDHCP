@@ -89,6 +89,41 @@ Clear_Lock(){
 }
 ############################################################################
 
+Conf_FromSettings(){
+	SETTINGSFILE="/jffs/addons/custom_settings.txt"
+	TMPFILE="/tmp/yazdhcp_clients.txt"
+	if [ -f "$SETTINGSFILE" ]; then
+		if [ "$(grep "yazdhcp_" $SETTINGSFILE | grep -v "version" -c)" -gt 0 ]; then
+			Print_Output true "Updated DHCP information from WebUI found, merging into $SCRIPT_CONF" "$PASS"
+			cp -a "$SCRIPT_CONF" "$SCRIPT_CONF.bak"
+			grep "yazdhcp_" "$SETTINGSFILE" | grep -v "version" > "$TMPFILE"
+			sed -i "s/yazdhcp_//g;s/ /=/g" "$TMPFILE"
+			DHCPCLIENTS=""
+			while IFS='' read -r line || [ -n "$line" ]; do
+				DHCPCLIENTS="${DHCPCLIENTS}$(echo "$line" | cut -f2 -d'=')"
+			done < "$TMPFILE"
+			
+			echo "$DHCPCLIENTS" > "$SCRIPT_DIR/test"
+			
+			#sed -i "s/$SETTINGNAME=.*/$SETTINGNAME=$SETTINGVALUE/" "$SCRIPT_CONF"
+			
+			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"
+			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"
+			mv "$SETTINGSFILE" "$SETTINGSFILE.bak"
+			cat "$SETTINGSFILE.bak" "$TMPFILE" > "$SETTINGSFILE"
+			rm -f "$TMPFILE"
+			rm -f "$SETTINGSFILE.bak"
+			
+			#Update_Hostnames
+			#Update_Staticlist
+			
+			Print_Output true "Merge of updated DHCP information from WebUI completed successfully" "$PASS"
+		else
+			Print_Output false "No updated DHCP information from WebUI found, no merge into $SCRIPT_CONF necessary" "$PASS"
+		fi
+	fi
+}
+
 Set_Version_Custom_Settings(){
 	SETTINGSFILE=/jffs/addons/custom_settings.txt
 	case "$1" in
@@ -774,11 +809,7 @@ case "$1" in
 		exit 0
 	;;
 	service_event)
-		if [ "$2" = "start" ] && echo "$3" | grep -q "$SCRIPT_NAME"; then
-			Check_Lock webui
-			Clear_Lock
-			exit 0
-		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}config" ]; then
+		if [ "$2" = "start" ] && [ "$3" = "$SCRIPT_NAME" ]; then
 			Conf_FromSettings
 			exit 0
 		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}checkupdate" ]; then

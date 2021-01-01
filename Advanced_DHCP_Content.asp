@@ -95,7 +95,7 @@ var backup_ip = "";
 var backup_dns = "";
 var backup_name = "";
 var sortfield, sortdir;
-var sorted_array = Array();
+var sorted_array = [];
 
 function initial(){
 	show_menu();
@@ -227,7 +227,7 @@ function update_status(){
 		url: '/ext/yazdhcp/detect_update.js',
 		dataType: 'script',
 		timeout: 3000,
-		error:	function(xhr){
+		error: function(xhr){
 			setTimeout(update_status, 1000);
 		},
 		success: function(){
@@ -394,7 +394,8 @@ function addRow_Group(upper){
 			"mac" : document.form.dhcp_staticmac_x_0.value.toUpperCase(),
 			"dns" : document.form.dhcp_dnsip_x_0.value,
 			"hostname" : document.form.dhcp_staticname_x_0.value,
-			"ip" : document.form.dhcp_staticip_x_0.value};
+			"ip" : document.form.dhcp_staticip_x_0.value
+		};
 			
 		manually_dhcp_list_array[document.form.dhcp_staticip_x_0.value.toUpperCase()] = item_para;
 		
@@ -849,10 +850,10 @@ function sortlist(field){
 	}
 	
 	document.getElementById('col' + sortfield).style.boxShadow = "rgb(255, 204, 0) 0px " + (sortdir == 1 ? "1" : "-1") + "px 0px 0px inset";
-	cookie.set('dhcp_sortcol', field);
-	cookie.set('dhcp_sortmet', sortdir);
+	cookie.set('dhcp_sortcol',field);
+	cookie.set('dhcp_sortmet',sortdir);
 	
-	sorted_array = Array();
+	sorted_array = [];
 	Object.keys(manually_dhcp_list_array).forEach(function(key){
 		sorted_array.push(manually_dhcp_list_array[key]);
 	});
@@ -973,7 +974,6 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 	}
 	return parseArray;
 }
-
 </script>
 </head>
 <body onload="initial();" onunload="return unload_body();" class="bg">

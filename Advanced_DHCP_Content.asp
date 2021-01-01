@@ -591,14 +591,20 @@ function applyRule(){
 		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.substring(1);
 		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.replace(/:/g,'|');
 		
-		if(document.form.YazDHCP_clients.value.length > 5998){
-			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of 5998)\r\nRemove some, or use shorter names.");
+		if(document.form.YazDHCP_clients.value.length > 6498){
+			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of 6498)\r\nRemove some, or use shorter names.");
 			return false;
 		}
-		else if(document.form.YazDHCP_clients.value.length > 2999 && document.form.YazDHCP_clients.value.length < 5998){
+		else if(document.form.YazDHCP_clients.value.length > 2999 && document.form.YazDHCP_clients.value.length <= 5998){
 			var yazdhcp_settings = document.form.YazDHCP_clients.value.match(/.{1,2999}/g);
 			custom_settings["yazdhcp_clients"] = yazdhcp_settings[0];
 			custom_settings["yazdhcp_clients2"] = yazdhcp_settings[1];
+		}
+		else if(document.form.YazDHCP_clients.value.length > 5998 && document.form.YazDHCP_clients.value.length <= 6498){
+			var yazdhcp_settings = document.form.YazDHCP_clients.value.match(/.{1,2999}/g);
+			custom_settings["yazdhcp_clients"] = yazdhcp_settings[0];
+			custom_settings["yazdhcp_clients2"] = yazdhcp_settings[1];
+			custom_settings["yazdhcp_clients3"] = yazdhcp_settings[2];
 		}
 		else{
 			custom_settings["yazdhcp_clients"] = document.form.YazDHCP_clients.value;

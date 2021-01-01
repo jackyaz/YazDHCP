@@ -106,7 +106,6 @@ function initial(){
 	httpApi.faqURL("1036677", function(url){document.getElementById("faq").href=url;});
 	
 	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
-		console.log(data);
 		if(data.length > 0){
 			dhcp_hostnames_array = data.map(function(obj) {
 				return {
@@ -114,15 +113,11 @@ function initial(){
 					HOSTNAME: obj.HOSTNAME
 				}
 			});
-			console.log(dhcp_hostnames_array);
 			
 			for(var i = 0; i < dhcp_hostnames_array.length; i++){
 				var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
 				manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
 			}
-			console.log(manually_dhcp_hosts_array);
-		var dhcp_staticlist_array2 = '<% nvram_get("dhcp_staticlist"); %>';
-		console.log(dhcp_staticlist_array2)
 			
 			dhcp_staticlist_array = data.map(function(obj) {
 				return {
@@ -142,11 +137,7 @@ function initial(){
 				manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
 				manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
 			}
-		console.log(dhcp_staticlist_array)
 		}
-		
-		console.log(manually_dhcp_list_array)
-		console.log(manually_dhcp_list_array_ori)
 		
 		showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
 		if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){

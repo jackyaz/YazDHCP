@@ -111,7 +111,7 @@ Conf_FromSettings(){
 			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"
 			mv "$SETTINGSFILE" "$SETTINGSFILE.bak"
 			cat "$SETTINGSFILE.bak" "$TMPFILE" > "$SETTINGSFILE"
-			rm -f "$TMPFILE"
+			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
 			
 			#Update_Hostnames
@@ -516,11 +516,10 @@ Export_FW_DHCP_JFFS(){
 	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
 	
 	while IFS='' read -r line || [ -n "$line" ]; do
-		echo "$line" | wc -w
 		if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 			echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
 		else
-			printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')"  >> "$SCRIPT_CONF"
+			printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
 		fi
 	done < /tmp/yazdhcp_sorted.tmp
 	
@@ -564,6 +563,7 @@ Update_Hostnames(){
 }
 
 Update_Staticlist(){
+	existingmd5=""
 	if [ -f "$SCRIPT_DIR/.staticlist" ]; then
 		existingmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	fi

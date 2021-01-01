@@ -121,29 +121,28 @@ function initial(){
 				manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
 			}
 			console.log(manually_dhcp_hosts_array);
-		}
-		
 		var dhcp_staticlist_array2 = '<% nvram_get("dhcp_staticlist"); %>';
 		console.log(dhcp_staticlist_array2)
-		
-		dhcp_staticlist_array = data.map(function(obj) {
-			return {
-				MAC: obj.MAC,
-				IP: obj.IP,
-				DNS: obj.DNS
+			
+			dhcp_staticlist_array = data.map(function(obj) {
+				return {
+					MAC: obj.MAC,
+					IP: obj.IP,
+					DNS: obj.DNS
+				}
+			});
+			
+			for(var i = 0; i < dhcp_staticlist_array.length; i++){
+				var item_para = {
+					"mac" : dhcp_staticlist_array[i].MAC.toUpperCase(),
+					"dns" : dhcp_staticlist_array[i].DNS,
+					"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC].hostname,
+					"ip" : dhcp_staticlist_array[i].IP
+				};
+				manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
+				manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
 			}
-		});
-		
 		console.log(dhcp_staticlist_array)
-		
-		for(var i = 0; i < dhcp_staticlist_array.length; i++){
-			var item_para = {
-				"mac" : dhcp_staticlist_array[i].MAC.toUpperCase(),
-				"dns" : dhcp_staticlist_array[i].DNS,
-				"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC].hostname,
-				"ip" : dhcp_staticlist_array[i].IP}; // For sorting purposes
-			manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
-			manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
 		}
 		
 		console.log(manually_dhcp_list_array)

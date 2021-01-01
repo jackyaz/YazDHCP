@@ -584,11 +584,15 @@ function applyRule(){
 		dhcp_hostnames_array = [];
 		
 		Object.keys(manually_dhcp_list_array).forEach(function(key){
-			document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns;
+			if(manually_dhcp_list_array[key].dns.length > 0){
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns + ">";
+			}
+			else{
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">";
+			}
 		});
 		
-		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.substring(1);
-		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.replace(/:/g,'|');
+		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.slice(0, -1).replace(/:/g,'|');
 		
 		if(document.form.YazDHCP_clients.value.length > 6498){
 			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of 6498)\r\nRemove some, or use shorter names.");

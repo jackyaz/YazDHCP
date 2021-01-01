@@ -91,7 +91,7 @@ Clear_Lock(){
 
 Conf_FromSettings(){
 	SETTINGSFILE="/jffs/addons/custom_settings.txt"
-	TMPFILE="/tmp/yazdhcp_clients.txt"
+	TMPFILE="/tmp/yazdhcp_clients.tmp"
 	if [ -f "$SETTINGSFILE" ]; then
 		if [ "$(grep "yazdhcp_" $SETTINGSFILE | grep -v "version" -c)" -gt 0 ]; then
 			Print_Output true "Updated DHCP information from WebUI found, merging into $SCRIPT_CONF" "$PASS"
@@ -103,9 +103,19 @@ Conf_FromSettings(){
 				DHCPCLIENTS="${DHCPCLIENTS}$(echo "$line" | cut -f2 -d'=')"
 			done < "$TMPFILE"
 			
-			echo "$DHCPCLIENTS" > "$SCRIPT_DIR/test"
+			echo "$DHCPCLIENTS" | sed 's/|/:/g;s/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp_clients_parsed.tmp
 			
-			#sed -i "s/$SETTINGNAME=.*/$SETTINGNAME=$SETTINGVALUE/" "$SCRIPT_CONF"
+			echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
+			sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp_clients_parsed.tmp > /tmp/yazdhcp_sorted.tmp
+			
+			while IFS='' read -r line || [ -n "$line" ]; do
+				echo "$line" | wc -w
+				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
+					echo "$line" | awk '{ print ""$1","$2","$3","$4""; }' >> "$SCRIPT_CONF"
+				else
+					printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')"  >> "$SCRIPT_CONF"
+				fi
+			done < /tmp/yazdhcp_sorted.tmp
 			
 			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"
 			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"
@@ -114,8 +124,8 @@ Conf_FromSettings(){
 			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
 			
-			#Update_Hostnames
-			#Update_Staticlist
+			Update_Hostnames
+			Update_Staticlist
 			
 			Print_Output true "Merge of updated DHCP information from WebUI completed successfully" "$PASS"
 		else

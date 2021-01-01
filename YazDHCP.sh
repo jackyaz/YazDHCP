@@ -567,7 +567,7 @@ Update_Staticlist(){
 	if [ -f "$SCRIPT_DIR/.staticlist" ]; then
 		existingmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	fi
-	tail -n +2 "$SCRIPT_CONF" | awk -F',' '{ print "dhcp-host="$1",set:"$1","$2""; }' > "$SCRIPT_DIR/.staticlist"
+	tail -n +2 "$SCRIPT_CONF" | awk -F',' '{ print ""$1",set:"$1","$2""; }' > "$SCRIPT_DIR/.staticlist"
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP static assignment list updated successfully" "$PASS"

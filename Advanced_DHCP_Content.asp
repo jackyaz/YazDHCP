@@ -589,15 +589,22 @@ function applyRule(){
 		});
 		
 		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.substring(1);
+		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.replace(/:/g,'|');
 		
-		console.log(document.form.YazDHCP_clients.value);
-		
-		if(document.form.YazDHCP_clients.value.length > 5000){
-			alert("Resulting list of DHCP reservations is too long - remove some, or use shorter names.");
+		if(document.form.YazDHCP_clients.value.length > 5998){
+			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of 5998)\r\nRemove some, or use shorter names.");
 			return false;
 		}
+		else if(document.form.YazDHCP_clients.value.length > 2999 && document.form.YazDHCP_clients.value.length < 5998){
+			var yazdhcp_settings = document.form.YazDHCP_clients.value.match(/.{1,2999}/g);
+			custom_settings["yazdhcp_clients"] = yazdhcp_settings[0];
+			custom_settings["yazdhcp_clients2"] = yazdhcp_settings[1];
+		}
+		else{
+			custom_settings["yazdhcp_clients"] = document.form.YazDHCP_clients.value;
+		}
 		
-		custom_settings["yazdhcp_clients"] = document.form.YazDHCP_clients.value;
+		document.getElementById('amng_custom').value = JSON.stringify(custom_settings);
 		
 		// Only restart the whole network if needed
 		if ((document.form.dhcp_wins_x.value != dhcp_wins_ori) ||

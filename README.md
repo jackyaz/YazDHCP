@@ -5,7 +5,7 @@
 ## v0.0.1
 ### Updated on 2020-12-24
 ## About
-Feature expansion of DHCP assignments
+Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on number of reservations.
 
 YazDHCP is free to use under the [GNU General Public License version 3](https://opensource.org/licenses/GPL-3.0) (GPL 3.0).
 
@@ -17,7 +17,7 @@ Love the script and want to support future development? Any and all donations gr
 [**Buy me a coffee**](https://www.buymeacoffee.com/jackyaz)
 
 ## Supported firmware versions
-You must be running firmware Merlin 384.15/384.13_4[Asuswrt-Merlin](https://asuswrt.lostrealm.ca/)
+You must be running firmware Merlin 384.15/384.13_4 [Asuswrt-Merlin](https://asuswrt.lostrealm.ca/)
 
 ## Installation
 Using your preferred SSH client/terminal, copy and paste the following command, then press Enter:
@@ -27,7 +27,9 @@ Using your preferred SSH client/terminal, copy and paste the following command, 
 ```
 
 ## Usage
-YazDHCP leverages the existing [LAN - DHCP Server](http://router.asus.com/Advanced_DHCP_Content.asp) page in the AsusWRT-Merlin WebUI. It has been modified under the hood to read and write to files in /jffs/addons/YazDHCP.d/ via the Addons API. This allows us to use a greater amount of storage (6KB vs 2.5-3KB) for DHCP host assignments.
+YazDHCP leverages the existing [LAN - DHCP Server](http://router.asus.com/Advanced_DHCP_Content.asp) page in the AsusWRT-Merlin WebUI. It has been modified under the hood to read and write to files in /jffs/addons/YazDHCP.d/ via the Addons API.
+
+This allows us to use a greater amount of storage (6KB vs 2.5-3KB) for DHCP host assignments.
 
 To launch the command line menu for YazDHCP after installation, use:
 ```sh

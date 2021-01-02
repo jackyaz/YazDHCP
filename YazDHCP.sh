@@ -645,6 +645,7 @@ ScriptHeader(){
 
 MainMenu(){
 	printf "x.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
+	printf "1. Process %s for dnsmasq\\n\\n" "$SCRIPT_CONF"
 	printf "u.    Check for updates\\n"
 	printf "uf.   Update %s with latest version (force update)\\n\\n" "$SCRIPT_NAME"
 	printf "e.    Exit %s\\n\\n" "$SCRIPT_NAME"
@@ -657,6 +658,14 @@ MainMenu(){
 		printf "Choose an option:    "
 		read -r menu
 		case "$menu" in
+			1)
+				printf "\\n"
+				if Check_Lock menu; then
+					Menu_ProcessDHCPClients
+				fi
+				PressEnter
+				break
+			;;
 			x)
 				printf "\\n"
 				if Check_Lock menu; then
@@ -738,6 +747,14 @@ Menu_Install(){
 	Shortcut_script create
 	
 	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
+	
+	Clear_Lock
+}
+
+Menu_ProcessDHCPClients(){
+	Update_Hostnames
+	Update_Staticlist
+	Update_Optionslist
 	
 	Clear_Lock
 }

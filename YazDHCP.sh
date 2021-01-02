@@ -495,6 +495,24 @@ PressEnter(){
 
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
+	httpstring="https"
+	
+	if [ "$(nvram get http_enable)" -eq 0 ]; then
+		httpstring="http"
+	fi
+	
+	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from nvram to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
+	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s:%s/Advanced_DHCP_Content.asp\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$(nvram get https_lanport)"
+	printf "\\n\\e[1mEnter answer (y/n):    \\e[0m"
+	read -r confirm
+	case "$confirm" in
+		y|Y)
+			:
+		;;
+		*)
+			return 1
+		;;
+	esac
 	
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
 		Print_Output true "DHCP static assignmnents not exported from nvram, no data found" "$PASS"

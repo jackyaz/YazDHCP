@@ -556,14 +556,16 @@ Export_FW_DHCP_JFFS(){
 	rm -f /tmp/yazdhcp*.tmp
 	
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
-		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_dhcp_staticlist"
+		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist"
 	fi
+	nvram get dhcp_staticlist > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
 	
 	if [ -f /jffs/nvram/dhcp_hostnames ]; then
-		cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_dhcp_hostnames"
+		cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames"
 		rm -f /jffs/nvram/dhcp_hostnames
 	fi
+	nvram get dhcp_hostnames > "$SCRIPT_DIR/.nvram_dhcp_hostnames"
 	nvram unset dhcp_hostnames
 	
 	nvram commit

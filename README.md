@@ -16,12 +16,8 @@ Love the script and want to support future development? Any and all donations gr
 
 [**Buy me a coffee**](https://www.buymeacoffee.com/jackyaz)
 
-![Menu UI](https://puu.sh/CNwF7/a095903835.png)
-
-![Web UI](https://puu.sh/FbJeV/0f32c1da9d.png)
-
 ## Supported firmware versions
-You must be running firmware Merlin 384.15/384.13_4 or Fork 43E5 (or later) [Asuswrt-Merlin](https://asuswrt.lostrealm.ca/)
+You must be running firmware Merlin 384.15/384.13_4[Asuswrt-Merlin](https://asuswrt.lostrealm.ca/)
 
 ## Installation
 Using your preferred SSH client/terminal, copy and paste the following command, then press Enter:
@@ -31,7 +27,9 @@ Using your preferred SSH client/terminal, copy and paste the following command, 
 ```
 
 ## Usage
-To launch the YazDHCP menu after installation, use:
+YazDHCP leverages the existing [LAN - DHCP Server](http://router.asus.com/Advanced_DHCP_Content.asp) page in the AsusWRT-Merlin WebUI. It has been modified under the hood to read and write to files in /jffs/addons/YazDHCP.d/ via the Addons API. This allows us to use a greater amount of storage (6KB vs 2.5-3KB) for DHCP host assignments.
+
+To launch the command line menu for YazDHCP after installation, use:
 ```sh
 YazDHCP
 ```
@@ -42,7 +40,7 @@ If you do not have Entware installed, you will need to use the full path:
 ```
 
 ## Help
-Please post about any issues and problems here: [YazDHCP on SNBForums]()
+Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/threads/yazdhcp-alpha-extended-dhcp-management-script.68724/)
 
 ## FAQs
 ### I haven't used scripts before on AsusWRT-Merlin

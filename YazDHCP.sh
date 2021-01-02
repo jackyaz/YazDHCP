@@ -664,7 +664,7 @@ ScriptHeader(){
 }
 
 MainMenu(){
-	printf "1. Process %s for dnsmasq\\n\\n" "$SCRIPT_CONF"
+	printf "1.    Process %s\\n\\n" "$SCRIPT_CONF"
 	showexport="true"
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
 		showexport="false"

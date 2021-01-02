@@ -644,8 +644,21 @@ ScriptHeader(){
 }
 
 MainMenu(){
-	printf "x.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
 	printf "1. Process %s for dnsmasq\\n\\n" "$SCRIPT_CONF"
+	showexport="true"
+	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
+		showexport="false"
+	fi
+	if [ -f /jffs/nvram/dhcp_hostnames ]; then
+		if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+			showexport="false"
+		fi
+	elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
+		showexport="false"
+	fi
+	if [ "$showexport" = "true" ]; then
+		printf "x.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
+	fi
 	printf "u.    Check for updates\\n"
 	printf "uf.   Update %s with latest version (force update)\\n\\n" "$SCRIPT_NAME"
 	printf "e.    Exit %s\\n\\n" "$SCRIPT_NAME"

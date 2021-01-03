@@ -614,6 +614,10 @@ function applyRule(){
 		}
 		
 		document.getElementById('amng_custom').value = JSON.stringify(custom_settings);
+		if(document.getElementById('amng_custom').value > 8192){
+			alert("Settings for all addons exceeds 8K limit, cannot save!");
+			return false;
+		}
 		
 		// Only restart the whole network if needed
 		if ((document.form.dhcp_wins_x.value != dhcp_wins_ori) ||

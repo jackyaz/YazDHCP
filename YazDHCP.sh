@@ -464,7 +464,7 @@ Mount_WebUI(){
 	mount -o bind "$SCRIPT_DIR/Advanced_DHCP_Content.asp" /www/Advanced_DHCP_Content.asp
 }
 
-Shortcut_script(){
+Shortcut_Script(){
 	case $1 in
 		create)
 			if [ -d /opt/bin ] && [ ! -f "/opt/bin/$SCRIPT_NAME" ] && [ -f "/jffs/scripts/$SCRIPT_NAME" ]; then
@@ -777,7 +777,7 @@ Menu_Install(){
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
-	Shortcut_script create
+	Shortcut_Script create
 	
 	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
 	
@@ -799,7 +799,7 @@ Menu_Startup(){
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
-	Shortcut_script create
+	Shortcut_Script create
 	Mount_WebUI
 	Clear_Lock
 }
@@ -819,7 +819,7 @@ Menu_Uninstall(){
 	Auto_Startup delete 2>/dev/null
 	Auto_ServiceEvent delete 2>/dev/null
 	Auto_DNSMASQ delete 2>/dev/null
-	Shortcut_script delete
+	Shortcut_Script delete
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -f "$SCRIPT_DIR/Advanced_DHCP_Content.asp"
 	
@@ -896,7 +896,7 @@ if [ -z "$1" ]; then
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
-	Shortcut_script create
+	Shortcut_Script create
 	ScriptHeader
 	MainMenu
 	exit 0

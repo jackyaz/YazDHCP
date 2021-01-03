@@ -614,7 +614,7 @@ function applyRule(){
 		}
 		
 		document.getElementById('amng_custom').value = JSON.stringify(custom_settings);
-		if(document.getElementById('amng_custom').value > 8192){
+		if(document.getElementById('amng_custom').value.length > 8192){
 			alert("Settings for all addons exceeds 8K limit, cannot save!");
 			return false;
 		}

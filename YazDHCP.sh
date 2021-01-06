@@ -779,6 +779,8 @@ Menu_Install(){
 	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_Script create
 	
+	Export_FW_DHCP_JFFS
+	
 	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
 	
 	Clear_Lock

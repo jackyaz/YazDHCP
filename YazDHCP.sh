@@ -15,7 +15,7 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v0.0.1"
+readonly SCRIPT_VERSION="v1.0.0"
 readonly SCRIPT_BRANCH="master"
 readonly SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -825,7 +825,7 @@ Menu_Uninstall(){
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -f "$SCRIPT_DIR/Advanced_DHCP_Content.asp"
 	
-	printf "\\n\\e[1mDo you want to delete %s DHCP client files? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	printf "\\n\\e[1mDo you want to delete %s DHCP client  and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
 	read -r confirm
 	case "$confirm" in
 		y|Y)

@@ -53,7 +53,7 @@ dhcp-hostsfile contains a list of MAC address to IP address bindings, to reserve
 dhcp-optsfile contains a list of MAC address to DNS server address bindings, to provide the specified DNS server as a DHCP option for a MAC address
 
 ## Help
-Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/threads/yazdhcp-alpha-extended-dhcp-management-script.68724/)
+Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/threads/yazdhcp-feature-expansion-of-dhcp-assignments-increasing-limit-on-the-number-of-dhcp-reservations.69247/)
 
 ## FAQs
 ### I haven't used scripts before on AsusWRT-Merlin

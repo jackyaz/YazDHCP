@@ -5,7 +5,7 @@
 ## v0.0.1
 ### Updated on 2020-12-24
 ## About
-Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on number of reservations.
+Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 
 YazDHCP is free to use under the [GNU General Public License version 3](https://opensource.org/licenses/GPL-3.0) (GPL 3.0).
 
@@ -40,6 +40,17 @@ If you do not have Entware installed, you will need to use the full path:
 ```sh
 /jffs/scripts/YazDHCP
 ```
+
+## Changes made to dnsmasq configuration
+YazDHCP adds 3 lines to dnsmasq.conf.add to configure DHCP reservations:
+```sh
+addn-hosts=/jffs/addons/YazDHCP.d/.hostnames # YazDHCP_hostnames
+dhcp-hostsfile=/jffs/addons/YazDHCP.d/.staticlist # YazDHCP_staticlist
+dhcp-optsfile=/jffs/addons/YazDHCP.d/.optionslist # YazDHCP_optionslist
+```
+addn-hosts contains a list of IP address to hostname mappings, for DNS resolution of DHCP reserved clients
+dhcp-hostsfile contains a list of MAC address to IP address bindings, to reserve a DHCP IP address for a MAC address
+dhcp-optsfile contains a list of MAC address to DNS server address bindings, to provide the specified DNS server as a DHCP option for a MAC address
 
 ## Help
 Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/threads/yazdhcp-alpha-extended-dhcp-management-script.68724/)

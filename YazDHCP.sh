@@ -123,11 +123,14 @@ Conf_FromSettings(){
 			sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp_clients_parsed.tmp > /tmp/yazdhcp_sorted.tmp
 			
 			while IFS='' read -r line || [ -n "$line" ]; do
-				echo "$line" | wc -w
 				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 					echo "$line" | awk '{ print ""$1","$2","$3","$4""; }' >> "$SCRIPT_CONF"
 				else
-					printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')"  >> "$SCRIPT_CONF"
+					if [ "$(echo "$line" | cut -d " " -f3 | wc -L)" -eq 0 ]; then
+						echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
+					else
+						printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
+					fi
 				fi
 			done < /tmp/yazdhcp_sorted.tmp
 			

@@ -584,11 +584,14 @@ function applyRule(){
 		dhcp_hostnames_array = [];
 		
 		Object.keys(manually_dhcp_list_array).forEach(function(key){
-			if(manually_dhcp_list_array[key].dns.length > 0){
+			if(manually_dhcp_list_array[key].dns.length > 0 && manually_dhcp_list_array[key].hostname.length >= 0){
 				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns + ">";
 			}
-			else{
+			else if(manually_dhcp_list_array[key].dns.length == 0 && manually_dhcp_list_array[key].hostname.length > 0){
 				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">" + manually_dhcp_list_array[key].hostname + ">";
+			}
+			else{
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key + ">";
 			}
 		});
 		

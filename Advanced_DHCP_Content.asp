@@ -1032,7 +1032,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <div class="formfontdesc">DHCP (Dynamic Host Configuration Protocol) is a protocol for the automatic configuration used on IP networks. The DHCP server can assign each client an IP address and informs the client of the of DNS server IP and default gateway IP. Router supports up to 253 IP addresses for your local network.</div>
 <div id="router_in_pool" class="formfontdesc" style="color:#FFCC00;display:none;">WARNING: The router's IP address is within your pool! <span id="LANIP"></span> </div>
 <div id="VPN_conflict" class="formfontdesc" style="color:#FFCC00;display:none;"><span id="VPN_conflict_span"></span></div>
-<div class="formfontdesc" style="margin-top:-10px;"><a id="faq" href="" target="_blank" style="font-family:Lucida Console;text-decoration:underline;">Manually Assigned IP addresses in the DHCP IP Pool&nbsp;FAQ</a></div>
+<div class="formfontdesc" style="margin-top:-10px;"><a id="faq" href="" target="_blank" style="font-family:Lucida Console;text-decoration:underline;">Manually Assigned IP addresses in the DHCP Scope&nbsp;FAQ</a></div>
 
 <table width="100%" border="1" align="center" cellpadding="2" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="border:0px;" id="table_buttons">
 <thead class="collapsible-jquery" id="scripttools">
@@ -1168,7 +1168,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </table>
 
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px;">
-<thead><tr><td colspan="5" id="GWStatic">Manually Assigned IP addresses in the DHCP IP Pool&nbsp;(Max Limit :&nbsp;64)</td></tr></thead>
+<thead><tr><td colspan="5" id="GWStatic">Manually Assigned IP addresses in the DHCP scope</td></tr></thead>
 
 <tr>
 <th id="col0" style="cursor: pointer;" onclick="sortlist(0); showdhcp_staticlist();"><a class="hintstyle" href="javascript:void(0);" onclick="openHint(5,10);">Client Name (MAC Address)</a></th>

@@ -477,7 +477,7 @@ function cancel_Edit(){
 		document.form.dhcp_staticip_x_0.value = backup_ip;
 		document.form.dhcp_dnsip_x_0.value = backup_dns;
 		document.form.dhcp_staticname_x_0.value = backup_name;
-		addRow_Group(64);
+		addRow_Group(128);
 	}
 }
 
@@ -1198,7 +1198,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </td>
 <td width="7%">
 <div>
-<input type="button" class="add_btn" onclick="addRow_Group(64);" value="">
+<input type="button" class="add_btn" onclick="addRow_Group(128);" value="">
 </div>
 </td>
 </tr>

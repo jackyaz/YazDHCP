@@ -89,6 +89,20 @@ Clear_Lock(){
 }
 ############################################################################
 
+Validate_IP(){
+	if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+		for i in 1 2 3 4; do
+			if [ "$(echo "$1" | cut -d. -f$i)" -gt 255 ]; then
+				Print_Output false "Octet $i ($(echo "$1" | cut -d. -f$i)) - is invalid, must be less than 255" "$ERR"
+				return 1
+			fi
+		done
+	else
+		Print_Output false "$1 - is not a valid IPv4 address, valid format is 1.2.3.4" "$ERR"
+		return 1
+	fi
+}
+
 Conf_FromSettings(){
 	SETTINGSFILE="/jffs/addons/custom_settings.txt"
 	TMPFILE="/tmp/yazdhcp_clients.tmp"
@@ -570,7 +584,11 @@ Export_FW_DHCP_JFFS(){
 		if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 			echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
 		else
-			printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
+			if ! Validate_IP "$(echo "$line" | cut -d " " -f3)" >/dev/null 2>&1; then
+				printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
+			else
+				echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
+			fi
 		fi
 	done < /tmp/yazdhcp_sorted.tmp
 	

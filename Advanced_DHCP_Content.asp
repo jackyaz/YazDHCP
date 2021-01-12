@@ -102,8 +102,8 @@ function initial(){
 	LoadCustomSettings();
 	ScriptUpdateLayout();
 	AddEventHandlers();
-	//id="faq" href="https://www.asus.com/US/support/FAQ/1036677"
-	httpApi.faqURL("1036677", function(url){document.getElementById("faq").href=url;});
+	//id="faq" href="https://www.asus.com/support/FAQ/1000906"
+	httpApi.faqURL("1000906", function(url){document.getElementById("faq").href=url;});
 	
 	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
 		if(data.length > 0){

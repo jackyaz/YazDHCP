@@ -533,9 +533,9 @@ Export_FW_DHCP_JFFS(){
 	fi
 	
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
-		sed 's/></\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist > /tmp/yazdhcp-ips.tmp
+		sed 's/</\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist | sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 	else
-		nvram get dhcp_staticlist | sed 's/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp-ips.tmp
+		nvram get dhcp_staticlist | sed 's/</\n/g;s/>/ /g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 	fi
 	
 	if [ -f /jffs/nvram/dhcp_hostnames ]; then

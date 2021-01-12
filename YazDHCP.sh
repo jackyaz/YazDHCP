@@ -558,6 +558,9 @@ Export_FW_DHCP_JFFS(){
 	
 	IFS=$OLDIFS
 	
+	sed -i 's/ $//' /tmp/yazdhcp-ips.tmp
+	sed -i 's/ $//' /tmp/yazdhcp-hosts.tmp
+	
 	awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
 	
 	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"

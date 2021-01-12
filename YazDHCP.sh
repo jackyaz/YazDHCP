@@ -551,8 +551,8 @@ Export_FW_DHCP_JFFS(){
 		if [ "$HOST" = "" ]; then
 			continue
 		fi
-		MAC=$(echo "$HOST" | cut -d ">" -f 1)
-		HOSTNAME=$(echo "$HOST" | cut -d ">" -f 2)
+		MAC=$(echo "$HOST" | cut -d ">" -f1)
+		HOSTNAME=$(echo "$HOST" | cut -d ">" -f2)
 		echo "$MAC $HOSTNAME" >> /tmp/yazdhcp-hosts.tmp
 	done
 	

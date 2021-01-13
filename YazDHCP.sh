@@ -627,7 +627,8 @@ Update_Hostnames(){
 	if [ -f "$SCRIPT_DIR/.hostnames" ]; then
 		existingmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	fi
-	tail -n +2 "$SCRIPT_CONF" | awk -F',' '{ print ""$2" "$3""; }' > "$SCRIPT_DIR/.hostnames"
+	tail -n +2 "$SCRIPT_CONF" | awk -F',' '$3 != "" { print ""$2" "$3""; }' > "$SCRIPT_DIR/.hostnames"
+	
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP hostname list updated successfully" "$PASS"

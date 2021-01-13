@@ -54,6 +54,9 @@ $(function (){
 	}
 });
 
+var apimaxlength = 6498;
+var maxnumrows = 128;
+
 var vpnc_dev_policy_list_array = [];
 var vpnc_dev_policy_list_array_ori = [];
 
@@ -99,6 +102,7 @@ var sorted_array = [];
 
 function initial(){
 	show_menu();
+	document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: )" + maxnumrows;
 	LoadCustomSettings();
 	ScriptUpdateLayout();
 	AddEventHandlers();
@@ -107,6 +111,24 @@ function initial(){
 	
 	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
 		if(data.length > 0){
+			
+			var settingslength = 0;
+			for(var i = 0; i < data.length; i++){
+				if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
+					settingslength+=(data[i].MAC+">"+data[i].IP+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
+				}
+				else if(data[i].DNS.length == 0 && data[i].HOSTNAME.length > 0){
+					settingslength+=(data[i].MAC+">"+data[i].IP+">"+data[i].HOSTNAME+">").length;
+				}
+				else{
+					settingslength+=(data[i].MAC+">"+data[i].IP+">").length;
+				}
+			}
+			
+			var averagesettinglength = Math.round(settingslength / data.length);
+			maxnumrows = Math.round(apimaxlength / averagesettinglength);
+			document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: " + maxnumrows + ")";
+			
 			dhcp_hostnames_array = data.map(function(obj) {
 				return {
 					MAC: obj.MAC,
@@ -477,7 +499,7 @@ function cancel_Edit(){
 		document.form.dhcp_staticip_x_0.value = backup_ip;
 		document.form.dhcp_dnsip_x_0.value = backup_dns;
 		document.form.dhcp_staticname_x_0.value = backup_name;
-		addRow_Group(128);
+		addRow_Group(maxnumrows);
 	}
 }
 
@@ -597,8 +619,8 @@ function applyRule(){
 		
 		document.form.YazDHCP_clients.value = document.form.YazDHCP_clients.value.slice(0, -1).replace(/:/g,'|');
 		
-		if(document.form.YazDHCP_clients.value.length > 6498){
-			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of 6498)\r\nRemove some, or use shorter names.");
+		if(document.form.YazDHCP_clients.value.length > apimaxlength){
+			alert("DHCP reservation list is too long (" + document.form.YazDHCP_clients.value.length + " characters exceeds limit of apimaxlength)\r\nRemove some, or use shorter names.");
 			return false;
 		}
 		else if(document.form.YazDHCP_clients.value.length > 2999 && document.form.YazDHCP_clients.value.length <= 5998){
@@ -606,7 +628,7 @@ function applyRule(){
 			custom_settings["yazdhcp_clients"] = yazdhcp_settings[0];
 			custom_settings["yazdhcp_clients2"] = yazdhcp_settings[1];
 		}
-		else if(document.form.YazDHCP_clients.value.length > 5998 && document.form.YazDHCP_clients.value.length <= 6498){
+		else if(document.form.YazDHCP_clients.value.length > 5998 && document.form.YazDHCP_clients.value.length <= apimaxlength){
 			var yazdhcp_settings = document.form.YazDHCP_clients.value.match(/.{1,2999}/g);
 			custom_settings["yazdhcp_clients"] = yazdhcp_settings[0];
 			custom_settings["yazdhcp_clients2"] = yazdhcp_settings[1];
@@ -1198,7 +1220,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 </td>
 <td width="7%">
 <div>
-<input type="button" class="add_btn" onclick="addRow_Group(128);" value="">
+<input type="button" class="add_btn" onclick="addRow_Group(maxnumrows);" value="">
 </div>
 </td>
 </tr>

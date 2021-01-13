@@ -120,7 +120,6 @@ Conf_FromSettings(){
 			echo "$DHCPCLIENTS" | sed 's/|/:/g;s/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp_clients_parsed.tmp
 			
 			echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
-			sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp_clients_parsed.tmp > /tmp/yazdhcp_sorted.tmp
 			
 			while IFS='' read -r line || [ -n "$line" ]; do
 				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
@@ -132,11 +131,12 @@ Conf_FromSettings(){
 						printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
 					fi
 				fi
-			done < /tmp/yazdhcp_sorted.tmp
+			done < /tmp/yazdhcp_clients_parsed.tmp
 			
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
 			awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
-			mv "$SCRIPT_CONF.tmp" "$SCRIPT_CONF"
+			sort -t . -k 3,3n -k 4,4n "$SCRIPT_CONF.tmp" > "$SCRIPT_CONF"
+			rm -f "$SCRIPT_CONF.tmp"
 			
 			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"
 			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"

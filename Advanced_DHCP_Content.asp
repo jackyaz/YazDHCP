@@ -127,6 +127,11 @@ function initial(){
 			
 			var averagesettinglength = Math.round(settingslength / data.length);
 			maxnumrows = Math.round(apimaxlength / averagesettinglength);
+			
+			if(maxnumrows > 253){
+				maxnumrows = 253;
+			}
+			
 			document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: " + maxnumrows + ")";
 			
 			dhcp_hostnames_array = data.map(function(obj) {

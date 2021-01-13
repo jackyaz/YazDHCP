@@ -135,7 +135,7 @@ Conf_FromSettings(){
 			done < /tmp/yazdhcp_sorted.tmp
 			
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
-			awk -F "," -v lansub=$LANSUBNET 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
 			mv "$SCRIPT_CONF.tmp" "$SCRIPT_CONF"
 			
 			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"

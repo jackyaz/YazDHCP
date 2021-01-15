@@ -2,8 +2,8 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/1f193c7b92a34b60bc1ef9a647f04908)](https://www.codacy.com/gh/jackyaz/YazDHCP/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jackyaz/YazDHCP&amp;utm_campaign=Badge_Grade)
 [![Build Status](https://travis-ci.com/jackyaz/YazDHCP.svg?branch=master)](https://travis-ci.com/jackyaz/YazDHCP)
 
-## v1.0.0
-### Updated on 2021-01-12
+## v1.0.1
+### Updated on 2021-01-15
 ## About
 Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 

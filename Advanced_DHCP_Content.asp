@@ -318,14 +318,14 @@ function update_status(){
 
 function CheckUpdate(){
 	showhide("btnChkUpdate", false);
-	document.formScriptActions.action_script.value="start_yazdhcpcheckupdate"
+	document.formScriptActions.action_script.value="start_YazDHCPcheckupdate"
 	document.formScriptActions.submit();
 	document.getElementById("imgChkUpdate").style.display = "";
 	setTimeout(update_status, 2000);
 }
 
 function DoUpdate(){
-	var action_script_tmp = "start_yazdhcpdoupdate";
+	var action_script_tmp = "start_YazDHCPdoupdate";
 	document.form.action_script.value = action_script_tmp;
 	var restart_time = 10;
 	document.form.action_wait.value = restart_time;

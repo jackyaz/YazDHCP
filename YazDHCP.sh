@@ -149,7 +149,7 @@ Conf_FromSettings(){
 			Update_Staticlist
 			Update_Optionslist
 			
-			Print_Output true "Merge of updated DHCP information from WebUI completed successfully" "$PASS"
+			Print_Output true "Merge of updated DHCP client information from WebUI completed successfully" "$PASS"
 		else
 			Print_Output false "No updated DHCP information from WebUI found, no merge into $SCRIPT_CONF necessary" "$PASS"
 		fi

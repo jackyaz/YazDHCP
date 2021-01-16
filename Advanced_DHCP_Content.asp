@@ -288,7 +288,7 @@ function reload(){
 
 function update_status(){
 	$.ajax({
-		url: '/ext/yazdhcp/detect_update.js',
+		url: '/ext/YazDHCP/detect_update.js',
 		dataType: 'script',
 		timeout: 3000,
 		error: function(xhr){

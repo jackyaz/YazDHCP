@@ -102,8 +102,11 @@ var sorted_array = [];
 
 function SelectedFile(){
 	var fileList = event.target.files;
-	if(fileList[0].name != "DHCP_clients.csv"){
-		alert("File must be named DHCP_clients.csv");
+	var filename = fileList[0].name.split('.')[0];
+	var fileext = fileList[0].name.substring(fileList[0].name.indexOf('.')+1);
+	
+	if(filename != "DHCP_clients" && fileext != "csv" && fileext != "htm" && fileext != "csv.htm"){
+		alert("Filename must be DHCP_clients\nAllowed extensions are .csv .htm .csv.htm");
 		$("#fileImportDHCPClients").val('');
 	}
 	else{

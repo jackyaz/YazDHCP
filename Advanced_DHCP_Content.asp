@@ -104,9 +104,8 @@ function SelectedFile(){
 	var fileList = event.target.files;
 	var filename = fileList[0].name.split('.')[0];
 	var fileext = fileList[0].name.substring(fileList[0].name.indexOf('.')+1);
-	
-	if(filename != "DHCP_clients" && fileext != "csv" && fileext != "htm" && fileext != "csv.htm"){
-		alert("Filename must be DHCP_clients\nAllowed extensions are .csv .htm .csv.htm");
+	if(filename != "DHCP_clients" && fileext != "csv"){
+		alert("Filename must be DHCP_clients.csv");
 		$("#fileImportDHCPClients").val('');
 	}
 	else{
@@ -146,6 +145,7 @@ function ParseCSVData(data){
 	dhcp_hostnames_array = [];
 	manually_dhcp_hosts_array = [];
 	
+	var csvContent = "MAC,IP,HOSTNAME,DNS\n";
 	var settingslength = 0;
 	for(var i = 0; i < data.length; i++){
 		if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
@@ -157,7 +157,11 @@ function ParseCSVData(data){
 		else{
 			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">").length;
 		}
+		var dataString = data[i].MAC+","+data[i].IP+","+data[i].HOSTNAME+","+data[i].DNS;
+		csvContent += i < data.length-1 ? dataString + '\n' : dataString;
 	}
+	
+	document.getElementById("aExport").href="data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
 	
 	var averagesettinglength = Math.round(settingslength / data.length);
 	maxnumrows = Math.round(apimaxlength / averagesettinglength);
@@ -1135,7 +1139,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <tr>
 <th width="20%">Export</th>
 <td>
-<a href="/ext/YazDHCP/DHCP_clients.htm" download="DHCP_clients.csv"><input type="button" value="Export to CSV" class="button_gen" name="btnExport"></a>
+<a id="aExport" href="" download="DHCP_clients.csv"><input type="button" value="Export to CSV" class="button_gen" name="btnExport"></a>
 </td>
 </tr>
 <tr>

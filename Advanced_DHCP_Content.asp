@@ -138,6 +138,10 @@ function LoadedFile(){
 	$("#fileImportDHCPClients").val('');
 }
 
+function ErrorCSVExport(){
+	document.getElementById("aExport").href="javascript:alert(\"Error exporting CSV, please refresh the page and try again\")";
+}
+
 function ParseCSVData(data){
 	dhcp_staticlist_array = [];
 	manually_dhcp_list_array = [];
@@ -254,7 +258,7 @@ function initial(){
 			ParseCSVData(data);
 		}
 		PageSetup();
-	});
+	}).catch(function(){ErrorCSVExport();});
 	
 	if(yadns_support){
 		if(yadns_enable != 0 && yadns_mode != -1){

@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.com/jackyaz/YazDHCP.svg?branch=master)](https://travis-ci.com/jackyaz/YazDHCP)
 
 ## v1.0.1
-### Updated on 2021-01-15
+### Updated on 2021-01-19
 ## About
 Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 

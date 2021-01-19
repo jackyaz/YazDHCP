@@ -64,6 +64,9 @@ var dhcp_staticlist_array = [];
 var manually_dhcp_list_array = [];
 var manually_dhcp_list_array_ori = [];
 
+var dhcp_hostnames_array = [];
+var manually_dhcp_hosts_array = [];
+
 if(pptpd_support){
 	var pptpd_clients = '<% nvram_get("pptpd_clients"); %>';
 	var pptpd_clients_subnet = pptpd_clients.split(".")[0]+"." + pptpd_clients.split(".")[1]+"." + pptpd_clients.split(".")[2]+".";
@@ -79,9 +82,6 @@ var pool_start_end = parseInt(pool_start.split(".")[3]);
 var pool_end_end = parseInt(pool_end.split(".")[3]);
 
 var static_enable = '<% nvram_get("dhcp_static_x"); %>';
-
-var dhcp_hostnames_array = [];
-var manually_dhcp_hosts_array = [];
 
 var lan_domain_ori = '<% nvram_get("lan_domain"); %>';
 var dhcp_gateway_ori = '<% nvram_get("dhcp_gateway_x"); %>';
@@ -100,6 +100,146 @@ var backup_name = "";
 var sortfield, sortdir;
 var sorted_array = [];
 
+function SelectedFile(){
+	var fileList = event.target.files;
+	var filename = fileList[0].name.split('.')[0];
+	var fileext = fileList[0].name.substring(fileList[0].name.indexOf('.')+1);
+	if(filename != "DHCP_clients" && fileext != "csv"){
+		alert("Filename must be DHCP_clients.csv");
+		$("#fileImportDHCPClients").val('');
+	}
+	else{
+		var fileReader = new FileReader();
+		fileReader.addEventListener('load',LoadedFile,false);
+		fileReader.readAsText(fileList[0]);
+	}
+}
+
+function LoadedFile(){
+	var dataResult = [];
+	var fileResult = event.target.result.split('\n');
+	fileResult.shift();
+	for(var i=0; i < fileResult.length; i++){
+		var obj = {};
+		if(fileResult[i] == ""){
+			continue;
+		}
+		var splitstring = fileResult[i].split(',');
+		obj["MAC"] = splitstring[0].replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		obj["IP"] = splitstring[1].replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		obj["HOSTNAME"] = splitstring[2].replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		obj["DNS"] = splitstring[3].replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+		dataResult.push(obj);
+	}
+	
+	ParseCSVData(dataResult);
+	PageSetup();
+	alert("CSV import complete.\nPlease check the Manual Assignment table.\nTo save the imported data, click Apply at the bottom of the page.");
+	$("#fileImportDHCPClients").val('');
+}
+
+function ParseCSVData(data){
+	dhcp_staticlist_array = [];
+	manually_dhcp_list_array = [];
+	manually_dhcp_list_array_ori = [];
+	dhcp_hostnames_array = [];
+	manually_dhcp_hosts_array = [];
+	
+	var csvContent = "MAC,IP,HOSTNAME,DNS\n";
+	var settingslength = 0;
+	for(var i = 0; i < data.length; i++){
+		if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
+			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
+		}
+		else if(data[i].DNS.length == 0 && data[i].HOSTNAME.length > 0){
+			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">").length;
+		}
+		else{
+			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">").length;
+		}
+		var dataString = data[i].MAC+","+data[i].IP+","+data[i].HOSTNAME+","+data[i].DNS;
+		csvContent += i < data.length-1 ? dataString + '\n' : dataString;
+	}
+	
+	document.getElementById("aExport").href="data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
+	
+	var averagesettinglength = Math.round(settingslength / data.length);
+	maxnumrows = Math.round(apimaxlength / averagesettinglength);
+	
+	if(maxnumrows > 253){
+		maxnumrows = 253;
+	}
+	
+	document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: " + maxnumrows + ")";
+	
+	dhcp_hostnames_array = data.map(function(obj) {
+		return {
+			MAC: obj.MAC,
+			HOSTNAME: obj.HOSTNAME
+		}
+	});
+	
+	for(var i = 0; i < dhcp_hostnames_array.length; i++){
+		var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
+		manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
+	}
+	
+	dhcp_staticlist_array = data.map(function(obj) {
+		return {
+			MAC: obj.MAC,
+			IP: obj.IP,
+			DNS: obj.DNS
+		}
+	});
+	
+	for(var i = 0; i < dhcp_staticlist_array.length; i++){
+		var item_para = {
+			"mac" : dhcp_staticlist_array[i].MAC.toUpperCase(),
+			"dns" : dhcp_staticlist_array[i].DNS,
+			"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC].hostname,
+			"ip" : dhcp_staticlist_array[i].IP
+		};
+		manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
+		manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
+	}
+}
+
+function PageSetup(){
+	showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
+	if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
+			document.getElementById('router_in_pool').style.display="";
+	}
+	else if(dhcp_staticlist_array.length > 0){
+		for(var i = 0; i < dhcp_staticlist_array.length; i++){
+			var static_ip = dhcp_staticlist_array[i].IP;
+			if(static_ip == document.form.lan_ipaddr.value){
+				document.getElementById('router_in_pool').style.display="";
+			}
+		}
+	}
+	
+	if(((sortfield = cookie.get('dhcp_sortcol')) != null) && ((sortdir = cookie.get('dhcp_sortmet')) != null)){
+		sortfield = parseInt(sortfield);
+		sortdir = parseInt(sortdir) * -1;
+	}
+	else{
+		sortfield = 1;
+		sortdir = -1;
+	}
+	sortlist(sortfield);
+	
+	setTimeout(showdhcp_staticlist, 100);
+	setTimeout("showDropdownClientList('setClientIP', 'mac>ip', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 1000);
+	
+	if(pptpd_support){
+		var chk_vpn = check_vpn();
+		if(chk_vpn == true){
+			document.getElementById("VPN_conflict").style.display = "";
+			document.getElementById("VPN_conflict_span").innerHTML = "* In conflict with the VPN server settings:" + pptpd_clients;
+		}
+	}
+}
+
 function initial(){
 	show_menu();
 	document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: )" + maxnumrows;
@@ -111,94 +251,9 @@ function initial(){
 	
 	d3.csv("/ext/YazDHCP/DHCP_clients.htm").then(function(data){
 		if(data.length > 0){
-			
-			var settingslength = 0;
-			for(var i = 0; i < data.length; i++){
-				if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
-					settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
-				}
-				else if(data[i].DNS.length == 0 && data[i].HOSTNAME.length > 0){
-					settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">").length;
-				}
-				else{
-					settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">").length;
-				}
-			}
-			
-			var averagesettinglength = Math.round(settingslength / data.length);
-			maxnumrows = Math.round(apimaxlength / averagesettinglength);
-			
-			if(maxnumrows > 253){
-				maxnumrows = 253;
-			}
-			
-			document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: " + maxnumrows + ")";
-			
-			dhcp_hostnames_array = data.map(function(obj) {
-				return {
-					MAC: obj.MAC,
-					HOSTNAME: obj.HOSTNAME
-				}
-			});
-			
-			for(var i = 0; i < dhcp_hostnames_array.length; i++){
-				var item_para = {"hostname" : dhcp_hostnames_array[i].HOSTNAME};
-				manually_dhcp_hosts_array[dhcp_hostnames_array[i].MAC] = item_para;
-			}
-			
-			dhcp_staticlist_array = data.map(function(obj) {
-				return {
-					MAC: obj.MAC,
-					IP: obj.IP,
-					DNS: obj.DNS
-				}
-			});
-			
-			for(var i = 0; i < dhcp_staticlist_array.length; i++){
-				var item_para = {
-					"mac" : dhcp_staticlist_array[i].MAC.toUpperCase(),
-					"dns" : dhcp_staticlist_array[i].DNS,
-					"hostname" : (manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC] == undefined) ? "" : manually_dhcp_hosts_array[dhcp_staticlist_array[i].MAC].hostname,
-					"ip" : dhcp_staticlist_array[i].IP
-				};
-				manually_dhcp_list_array[dhcp_staticlist_array[i].IP] = item_para;
-				manually_dhcp_list_array_ori[dhcp_staticlist_array[i].IP] = item_para;
-			}
+			ParseCSVData(data);
 		}
-		
-		showtext(document.getElementById("LANIP"), '<% nvram_get("lan_ipaddr"); %>');
-		if((inet_network(document.form.lan_ipaddr.value) >= inet_network(document.form.dhcp_start.value)) && (inet_network(document.form.lan_ipaddr.value) <= inet_network(document.form.dhcp_end.value))){
-				document.getElementById('router_in_pool').style.display="";
-		}
-		else if(dhcp_staticlist_array.length > 0){
-			for(var i = 0; i < dhcp_staticlist_array.length; i++){
-				var static_ip = dhcp_staticlist_array[i].IP;
-				if(static_ip == document.form.lan_ipaddr.value){
-					document.getElementById('router_in_pool').style.display="";
-				}
-			}
-		}
-		
-		if(((sortfield = cookie.get('dhcp_sortcol')) != null) && ((sortdir = cookie.get('dhcp_sortmet')) != null)){
-			sortfield = parseInt(sortfield);
-			sortdir = parseInt(sortdir) * -1;
-		}
-		else{
-			sortfield = 1;
-			sortdir = -1;
-		}
-		sortlist(sortfield);
-		
-		setTimeout(showdhcp_staticlist, 100);
-		setTimeout("showDropdownClientList('setClientIP', 'mac>ip', 'all', 'ClientList_Block_PC', 'pull_arrow', 'all');", 1000);
-		
-		if(pptpd_support){
-			var chk_vpn = check_vpn();
-			if(chk_vpn == true){
-				document.getElementById("VPN_conflict").style.display = "";
-				document.getElementById("VPN_conflict_span").innerHTML = "* In conflict with the VPN server settings:" + pptpd_clients;
-			}
-		}
+		PageSetup();
 	});
 	
 	if(yadns_support){
@@ -240,7 +295,7 @@ function reload(){
 
 function update_status(){
 	$.ajax({
-		url: '/ext/yazdhcp/detect_update.js',
+		url: '/ext/YazDHCP/detect_update.js',
 		dataType: 'script',
 		timeout: 3000,
 		error: function(xhr){
@@ -270,14 +325,14 @@ function update_status(){
 
 function CheckUpdate(){
 	showhide("btnChkUpdate", false);
-	document.formScriptActions.action_script.value="start_yazdhcpcheckupdate"
+	document.formScriptActions.action_script.value="start_YazDHCPcheckupdate"
 	document.formScriptActions.submit();
 	document.getElementById("imgChkUpdate").style.display = "";
 	setTimeout(update_status, 2000);
 }
 
 function DoUpdate(){
-	var action_script_tmp = "start_yazdhcpdoupdate";
+	var action_script_tmp = "start_YazDHCPdoupdate";
 	document.form.action_script.value = action_script_tmp;
 	var restart_time = 10;
 	document.form.action_wait.value = restart_time;
@@ -1081,10 +1136,20 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 &nbsp;&nbsp;&nbsp;
 </td>
 </tr>
+<tr>
+<th width="20%">Export</th>
+<td>
+<a id="aExport" href="" download="DHCP_clients.csv"><input type="button" value="Export to CSV" class="button_gen" name="btnExport"></a>
+</td>
+</tr>
+<tr>
+<th width="20%">Import</th>
+<td>
+<input type="file" name="fileImportDHCPClients" id="fileImportDHCPClients" accept=".csv" onchange="SelectedFile();" >
+</td>
+</tr>
 </table>
 <div style="line-height:10px;">&nbsp;</div>
-
-
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 
 <thead><tr><td colspan="2">Basic Config</td></tr></thead>
@@ -1221,7 +1286,7 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 <input type="text" class="input_15_table" maxlength="15" name="dhcp_dnsip_x_0" onkeypress="return validator.isIPAddr(this,event)" autocorrect="off" autocapitalize="off">
 </td>
 <td width="23%">
-<input type="text" class="input_15_table" maxlenght="30" onkeypress="return validator.isString(this, event);" name="dhcp_staticname_x_0" autocorrect="off" autocapitalize="off">
+<input type="text" class="input_15_table" maxlength="30" onkeypress="return validator.isString(this, event);" name="dhcp_staticname_x_0" autocorrect="off" autocapitalize="off">
 </td>
 <td width="7%">
 <div>

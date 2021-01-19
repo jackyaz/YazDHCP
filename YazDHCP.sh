@@ -15,7 +15,7 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.0"
+readonly SCRIPT_VERSION="v1.0.1"
 SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -149,7 +149,7 @@ Conf_FromSettings(){
 			Update_Staticlist
 			Update_Optionslist
 			
-			Print_Output true "Merge of updated DHCP information from WebUI completed successfully" "$PASS"
+			Print_Output true "Merge of updated DHCP client information from WebUI completed successfully" "$PASS"
 		else
 			Print_Output false "No updated DHCP information from WebUI found, no merge into $SCRIPT_CONF necessary" "$PASS"
 		fi

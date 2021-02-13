@@ -868,7 +868,34 @@ Menu_Uninstall(){
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -f "$SCRIPT_DIR/Advanced_DHCP_Content.asp"
 	
-	printf "\\n\\e[1mDo you want to delete %s DHCP client  and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	printf "\\n\\e[1mDo you want to restore the original nvram values from before %s was installed? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	read -r confirm
+	case "$confirm" in
+		y|Y)
+			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist" ]; then
+				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames" ]; then
+				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_dhcp_staticlist" ]; then
+				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_dhcp_staticlist")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_dhcp_hostnames" ]; then
+				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_dhcp_hostnames")"
+			fi
+			
+			nvram commit
+		;;
+		*)
+			:
+		;;
+	esac
+	
+	printf "\\n\\e[1mDo you want to delete %s DHCP clients and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
 	read -r confirm
 	case "$confirm" in
 		y|Y)

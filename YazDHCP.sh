@@ -516,14 +516,8 @@ PressEnter(){
 
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
-	httpstring="https"
-	
-	if [ "$(nvram get http_enable)" -eq 0 ]; then
-		httpstring="http"
-	fi
-	
 	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from nvram to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
-	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s:%s/Advanced_DHCP_Content.asp\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$(nvram get https_lanport)"
+	printf "%s will backup nvram/jffs DHCP data as part of the export\\n" "$SCRIPT_NAME"
 	printf "\\n\\e[1mEnter answer (y/n):    \\e[0m"
 	read -r confirm
 	case "$confirm" in
@@ -801,6 +795,26 @@ Menu_Install(){
 	Set_Version_Custom_Settings local
 	Set_Version_Custom_Settings server "$SCRIPT_VERSION"
 	Create_Symlinks
+	
+	httpstring="https"
+	portstring="$(nvram get https_lanport)"
+	
+	if [ "$(nvram get http_enable)" -eq 0 ]; then
+		httpstring="http"
+		portstring=""
+	fi
+	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s:%s/Advanced_DHCP_Content.asp\\e[0m\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$portstring"
+	printf "\\n\\e[1mIf you wish to screenshot, please do so now as the WebUI page will be updated by %s\\e[0m\\n" "$SCRIPT_NAME"
+	printf "\\n\\e[1mPress any key when you are ready to continue\\e[0m\\n"
+	while true; do
+		read -r key
+		case "$key" in
+			*)
+				break
+			;;
+		esac
+	done
+	
 	Update_File Advanced_DHCP_Content.asp
 	Update_File shared-jy.tar.gz
 	Auto_Startup create 2>/dev/null

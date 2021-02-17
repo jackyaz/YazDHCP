@@ -797,13 +797,13 @@ Menu_Install(){
 	Create_Symlinks
 	
 	httpstring="https"
-	portstring="$(nvram get https_lanport)"
+	portstring=":$(nvram get https_lanport)"
 	
 	if [ "$(nvram get http_enable)" -eq 0 ]; then
 		httpstring="http"
 		portstring=""
 	fi
-	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s:%s/Advanced_DHCP_Content.asp\\e[0m\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$portstring"
+	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s%s/Advanced_DHCP_Content.asp\\e[0m\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$portstring"
 	printf "\\n\\e[1mIf you wish to screenshot, please do so now as the WebUI page will be updated by %s\\e[0m\\n" "$SCRIPT_NAME"
 	printf "\\n\\e[1mPress any key when you are ready to continue\\e[0m\\n"
 	while true; do

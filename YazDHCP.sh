@@ -15,7 +15,7 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.1"
+readonly SCRIPT_VERSION="v1.0.2"
 SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -516,14 +516,8 @@ PressEnter(){
 
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
-	httpstring="https"
-	
-	if [ "$(nvram get http_enable)" -eq 0 ]; then
-		httpstring="http"
-	fi
-	
 	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from nvram to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
-	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s:%s/Advanced_DHCP_Content.asp\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$(nvram get https_lanport)"
+	printf "%s will backup nvram/jffs DHCP data as part of the export\\n" "$SCRIPT_NAME"
 	printf "\\n\\e[1mEnter answer (y/n):    \\e[0m"
 	read -r confirm
 	case "$confirm" in
@@ -801,6 +795,26 @@ Menu_Install(){
 	Set_Version_Custom_Settings local
 	Set_Version_Custom_Settings server "$SCRIPT_VERSION"
 	Create_Symlinks
+	
+	httpstring="https"
+	portstring=":$(nvram get https_lanport)"
+	
+	if [ "$(nvram get http_enable)" -eq 0 ]; then
+		httpstring="http"
+		portstring=""
+	fi
+	printf "%s will backup nvram/jffs DHCP data as part of the export, but you may wish to screenshot %s://%s%s/Advanced_DHCP_Content.asp\\e[0m\\n" "$SCRIPT_NAME" "$httpstring" "$(nvram get lan_ipaddr)" "$portstring"
+	printf "\\n\\e[1mIf you wish to screenshot, please do so now as the WebUI page will be updated by %s\\e[0m\\n" "$SCRIPT_NAME"
+	printf "\\n\\e[1mPress any key when you are ready to continue\\e[0m\\n"
+	while true; do
+		read -r key
+		case "$key" in
+			*)
+				break
+			;;
+		esac
+	done
+	
 	Update_File Advanced_DHCP_Content.asp
 	Update_File shared-jy.tar.gz
 	Auto_Startup create 2>/dev/null
@@ -854,7 +868,34 @@ Menu_Uninstall(){
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -f "$SCRIPT_DIR/Advanced_DHCP_Content.asp"
 	
-	printf "\\n\\e[1mDo you want to delete %s DHCP client  and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	printf "\\n\\e[1mDo you want to restore the original nvram values from before %s was installed? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	read -r confirm
+	case "$confirm" in
+		y|Y)
+			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist" ]; then
+				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames" ]; then
+				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_dhcp_staticlist" ]; then
+				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_dhcp_staticlist")"
+			fi
+			
+			if [ -f "$SCRIPT_DIR/.nvram_dhcp_hostnames" ]; then
+				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_dhcp_hostnames")"
+			fi
+			
+			nvram commit
+		;;
+		*)
+			:
+		;;
+	esac
+	
+	printf "\\n\\e[1mDo you want to delete %s DHCP clients and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
 	read -r confirm
 	case "$confirm" in
 		y|Y)
@@ -869,31 +910,6 @@ Menu_Uninstall(){
 	rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
 	Clear_Lock
 	Print_Output true "Uninstall completed" "$PASS"
-}
-
-NTP_Ready(){
-	if [ "$1" = "service_event" ] && ! echo "$@" | grep -iq "$SCRIPT_NAME"; then
-		exit 0
-	fi
-	if [ "$(nvram get ntp_ready)" -eq 0 ]; then
-		ntpwaitcount="0"
-		Check_Lock
-		while [ "$(nvram get ntp_ready)" -eq 0 ] && [ "$ntpwaitcount" -lt 300 ]; do
-			ntpwaitcount="$((ntpwaitcount + 1))"
-			if [ "$ntpwaitcount" -eq 60 ]; then
-				Print_Output true "Waiting for NTP to sync..." "$WARN"
-			fi
-			sleep 1
-		done
-		if [ "$ntpwaitcount" -ge 300 ]; then
-			Print_Output true "NTP failed to sync after 5 minutes. Please resolve!" "$CRIT"
-			Clear_Lock
-			exit 1
-		else
-			Print_Output true "NTP synced, $SCRIPT_NAME will now continue" "$PASS"
-			Clear_Lock
-		fi
-	fi
 }
 
 Check_Requirements(){
@@ -918,8 +934,6 @@ Check_Requirements(){
 	fi
 }
 
-NTP_Ready "$@"
-
 if [ -z "$1" ]; then
 	Create_Dirs
 	Set_Version_Custom_Settings local
@@ -942,7 +956,7 @@ case "$1" in
 	startup)
 		Check_Lock
 		if [ "$2" != "force" ]; then
-			sleep 15
+			sleep 5
 		fi
 		Menu_Startup
 		exit 0

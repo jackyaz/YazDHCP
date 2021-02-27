@@ -956,7 +956,7 @@ case "$1" in
 	startup)
 		Check_Lock
 		if [ "$2" != "force" ]; then
-			sleep 15
+			sleep 5
 		fi
 		Menu_Startup
 		exit 0

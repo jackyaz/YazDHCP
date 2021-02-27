@@ -912,31 +912,6 @@ Menu_Uninstall(){
 	Print_Output true "Uninstall completed" "$PASS"
 }
 
-NTP_Ready(){
-	if [ "$1" = "service_event" ] && ! echo "$@" | grep -iq "$SCRIPT_NAME"; then
-		exit 0
-	fi
-	if [ "$(nvram get ntp_ready)" -eq 0 ]; then
-		ntpwaitcount="0"
-		Check_Lock
-		while [ "$(nvram get ntp_ready)" -eq 0 ] && [ "$ntpwaitcount" -lt 300 ]; do
-			ntpwaitcount="$((ntpwaitcount + 1))"
-			if [ "$ntpwaitcount" -eq 60 ]; then
-				Print_Output true "Waiting for NTP to sync..." "$WARN"
-			fi
-			sleep 1
-		done
-		if [ "$ntpwaitcount" -ge 300 ]; then
-			Print_Output true "NTP failed to sync after 5 minutes. Please resolve!" "$CRIT"
-			Clear_Lock
-			exit 1
-		else
-			Print_Output true "NTP synced, $SCRIPT_NAME will now continue" "$PASS"
-			Clear_Lock
-		fi
-	fi
-}
-
 Check_Requirements(){
 	CHECKSFAILED="false"
 	
@@ -958,8 +933,6 @@ Check_Requirements(){
 		return 1
 	fi
 }
-
-NTP_Ready "$@"
 
 if [ -z "$1" ]; then
 	Create_Dirs

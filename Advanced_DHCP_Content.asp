@@ -64,7 +64,7 @@ function LoadCustomSettings(){
 	}
 }
 
-$(function (){
+$(function(){
 	if(amesh_support && (isSwMode("rt") || isSwMode("ap")) && ameshRouter_support){
 		addNewScript('/require/modules/amesh.js');
 	}

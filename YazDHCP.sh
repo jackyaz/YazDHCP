@@ -481,7 +481,6 @@ Download_File(){
 
 Mount_WebUI(){
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
-	
 	mount -o bind "$SCRIPT_DIR/Advanced_DHCP_Content.asp" /www/Advanced_DHCP_Content.asp
 }
 
@@ -821,6 +820,8 @@ Menu_Install(){
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_Script create
+	
+	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
 	
 	Export_FW_DHCP_JFFS
 	

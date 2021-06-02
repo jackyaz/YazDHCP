@@ -21,6 +21,22 @@ thead.collapsible-jquery {
   outline: none;
   cursor: pointer;
 }
+.sort_border {
+  position: relative;
+  cursor: pointer;
+}
+.sort_border:before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  left: 0;
+  border-top: 1px solid #FC0;
+  top: 0;
+}
+.sort_border.decrease:before {
+  bottom: 0;
+  top: initial;
+}
 </style>
 <script language="JavaScript" type="text/javascript" src="/ext/shared-jy/jquery.js"></script>
 <script language="JavaScript" type="text/javascript" src="/ext/shared-jy/d3.js"></script>
@@ -244,6 +260,7 @@ function PageSetup(){
 	}
 }
 
+var manually_dhcp_sort_type = 0;//0:increase, 1:decrease
 function initial(){
 	show_menu();
 	document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: )" + maxnumrows;
@@ -1075,6 +1092,20 @@ function parse_vpnc_dev_policy_list(_oriNvram){
 		}
 	}
 	return parseArray;
+}
+
+function sortClientIP(){
+	//manually_dhcp_sort_type
+	if($(".sort_border").hasClass("decrease")){
+		$(".sort_border").removeClass("decrease");
+		manually_dhcp_sort_type = 0;
+	}
+	else{
+		$(".sort_border").addClass("decrease");
+		manually_dhcp_sort_type = 1;
+	}
+	
+	showdhcp_staticlist();
 }
 </script>
 </head>

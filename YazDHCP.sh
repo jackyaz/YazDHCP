@@ -124,7 +124,7 @@ Conf_FromSettings(){
 			while IFS='' read -r line || [ -n "$line" ]; do
 				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 					echo "$line" | awk '{ print ""$1","$2","$3","$4""; }' >> "$SCRIPT_CONF"
-				else
+				elif [ "$(echo "$line" | wc -w)" -gt 1 ]; then
 					if [ "$(echo "$line" | cut -d " " -f3 | wc -L)" -eq 0 ]; then
 						echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
 					else

@@ -13,6 +13,8 @@
 ##                                                      ##
 ##########################################################
 
+# shellcheck disable=SC2155
+
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
 readonly SCRIPT_VERSION="v1.0.3"

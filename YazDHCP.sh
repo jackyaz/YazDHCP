@@ -136,7 +136,12 @@ Conf_FromSettings(){
 			done < /tmp/yazdhcp_clients_parsed.tmp
 			
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
-			awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			LANNETMASK="$(nvram get lan_netmask)"
+			if [ "$LANNETMASK" = "255.255.255.0" ]; then
+				awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			else
+				cp "$SCRIPT_CONF" "$SCRIPT_CONF.tmp"
+			fi
 			sort -t . -k 3,3n -k 4,4n "$SCRIPT_CONF.tmp" > "$SCRIPT_CONF"
 			rm -f "$SCRIPT_CONF.tmp"
 			

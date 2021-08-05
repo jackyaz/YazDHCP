@@ -168,14 +168,18 @@ function ParseCSVData(data){
 	var csvContent = "MAC,IP,HOSTNAME,DNS\n";
 	var settingslength = 0;
 	for(var i = 0; i < data.length; i++){
+		var ipvalue = data[i].IP;
+		if(document.form.lan_netmask.value == "255.255.255.0"){
+			ipvalue = data[i].IP.split(".")[3]
+		}
 		if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
-			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
+			settingslength+=(data[i].MAC+">"+ipvalue+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
 		}
 		else if(data[i].DNS.length == 0 && data[i].HOSTNAME.length > 0){
-			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">"+data[i].HOSTNAME+">").length;
+			settingslength+=(data[i].MAC+">"+ipvalue+">"+data[i].HOSTNAME+">").length;
 		}
 		else{
-			settingslength+=(data[i].MAC+">"+data[i].IP.split(".")[3]+">").length;
+			settingslength+=(data[i].MAC+">"+ipvalue+">").length;
 		}
 		var dataString = data[i].MAC+","+data[i].IP+","+data[i].HOSTNAME+","+data[i].DNS;
 		csvContent += i < data.length-1 ? dataString + '\n' : dataString;
@@ -687,14 +691,19 @@ function applyRule(){
 		dhcp_hostnames_array = [];
 		
 		Object.keys(manually_dhcp_list_array).forEach(function(key){
+			var ipvalue = key;
+			if(document.form.lan_netmask.value == "255.255.255.0"){
+				ipvalue = key.split(".")[3]
+			}
+			
 			if(manually_dhcp_list_array[key].dns.length > 0 && manually_dhcp_list_array[key].hostname.length >= 0){
-				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key.split(".")[3] + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns + ">";
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + ipvalue + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns + ">";
 			}
 			else if(manually_dhcp_list_array[key].dns.length == 0 && manually_dhcp_list_array[key].hostname.length > 0){
-				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key.split(".")[3] + ">" + manually_dhcp_list_array[key].hostname + ">";
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + ipvalue + ">" + manually_dhcp_list_array[key].hostname + ">";
 			}
 			else{
-				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + key.split(".")[3] + ">";
+				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + ipvalue + ">";
 			}
 		});
 		

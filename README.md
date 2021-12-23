@@ -1,9 +1,9 @@
 # YazDHCP
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/1f193c7b92a34b60bc1ef9a647f04908)](https://www.codacy.com/gh/jackyaz/YazDHCP/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jackyaz/YazDHCP&amp;utm_campaign=Badge_Grade)
-[![Build Status](https://travis-ci.com/jackyaz/YazDHCP.svg?branch=master)](https://travis-ci.com/jackyaz/YazDHCP)
+![Shellcheck](https://github.com/jackyaz/YazDHCP/actions/workflows/shellcheck.yml/badge.svg)
 
-## v1.0.2
-### Updated on 2021-02-27
+## v1.0.3
+### Updated on 2021-12-23
 ## About
 Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 
@@ -53,12 +53,4 @@ dhcp-hostsfile contains a list of MAC address to IP address bindings, to reserve
 dhcp-optsfile contains a list of MAC address to DNS server address bindings, to provide the specified DNS server as a DHCP option for a MAC address
 
 ## Help
-Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/threads/yazdhcp-feature-expansion-of-dhcp-assignments-increasing-limit-on-the-number-of-dhcp-reservations.69247/)
-
-## FAQs
-### I haven't used scripts before on AsusWRT-Merlin
-If this is the first time you are using scripts, don't panic! In your router's WebUI, go to the Administration area of the left menu, and then the System tab. Set Enable JFFS custom scripts and configs to Yes.
-
-Further reading about scripts is available here: [AsusWRT-Merlin User-scripts](https://github.com/RMerl/asuswrt-merlin/wiki/User-scripts)
-
-![WebUI enable scripts](https://puu.sh/A3wnG/00a43283ed.png)
+Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=31)

@@ -13,9 +13,11 @@
 ##                                                      ##
 ##########################################################
 
+# shellcheck disable=SC2155
+
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.2"
+readonly SCRIPT_VERSION="v1.0.3"
 SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -124,7 +126,7 @@ Conf_FromSettings(){
 			while IFS='' read -r line || [ -n "$line" ]; do
 				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 					echo "$line" | awk '{ print ""$1","$2","$3","$4""; }' >> "$SCRIPT_CONF"
-				else
+				elif [ "$(echo "$line" | wc -w)" -gt 1 ]; then
 					if [ "$(echo "$line" | cut -d " " -f3 | wc -L)" -eq 0 ]; then
 						echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
 					else
@@ -134,7 +136,12 @@ Conf_FromSettings(){
 			done < /tmp/yazdhcp_clients_parsed.tmp
 			
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
-			awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			LANNETMASK="$(nvram get lan_netmask)"
+			if [ "$LANNETMASK" = "255.255.255.0" ]; then
+				awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			else
+				cp "$SCRIPT_CONF" "$SCRIPT_CONF.tmp"
+			fi
 			sort -t . -k 3,3n -k 4,4n "$SCRIPT_CONF.tmp" > "$SCRIPT_CONF"
 			rm -f "$SCRIPT_CONF.tmp"
 			
@@ -157,7 +164,7 @@ Conf_FromSettings(){
 }
 
 Set_Version_Custom_Settings(){
-	SETTINGSFILE=/jffs/addons/custom_settings.txt
+	SETTINGSFILE="/jffs/addons/custom_settings.txt"
 	case "$1" in
 		local)
 			if [ -f "$SETTINGSFILE" ]; then
@@ -481,7 +488,6 @@ Download_File(){
 
 Mount_WebUI(){
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
-	
 	mount -o bind "$SCRIPT_DIR/Advanced_DHCP_Content.asp" /www/Advanced_DHCP_Content.asp
 }
 
@@ -821,6 +827,8 @@ Menu_Install(){
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_Script create
+	
+	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
 	
 	Export_FW_DHCP_JFFS
 	

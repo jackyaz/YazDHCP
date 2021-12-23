@@ -3,7 +3,7 @@
 ![Shellcheck](https://github.com/jackyaz/YazDHCP/actions/workflows/shellcheck.yml/badge.svg)
 
 ## v1.0.3
-### Updated on 2021-08-06
+### Updated on 2021-12-23
 ## About
 Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 

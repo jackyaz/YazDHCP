@@ -547,7 +547,7 @@ Export_FW_DHCP_JFFS(){
 		return 1
 	fi
 	
-	if [ "$(Firmware_Version_Check "$(nvram get buildno)")" -lt "$(Firmware_Version_Check 386.4)" ]; then
+	if [ "$(Firmware_Version_Number "$(nvram get buildno)")" -lt "$(Firmware_Version_Number 386.4)" ]; then
 		if [ -f /jffs/nvram/dhcp_hostnames ]; then
 			if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
 				Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"

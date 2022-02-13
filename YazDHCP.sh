@@ -17,15 +17,15 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.3"
+readonly SCRIPT_VERSION="v1.0.4"
 SCRIPT_BRANCH="master"
-SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
+SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
 readonly SCRIPT_CONF="$SCRIPT_DIR/DHCP_clients"
 readonly SCRIPT_WEBPAGE_DIR="$(readlink /www/user)"
 readonly SCRIPT_WEB_DIR="$SCRIPT_WEBPAGE_DIR/$SCRIPT_NAME"
 readonly SHARED_DIR="/jffs/addons/shared-jy"
-readonly SHARED_REPO="https://raw.githubusercontent.com/jackyaz/shared-jy/master"
+readonly SHARED_REPO="https://jackyaz.io/shared-jy/master"
 readonly SHARED_WEB_DIR="$SCRIPT_WEBPAGE_DIR/shared-jy"
 ### End of script variables ###
 
@@ -57,6 +57,12 @@ Firmware_Version_Check(){
 		return 1
 	fi
 }
+
+### Code for this function courtesy of https://github.com/decoderman- credit to @thelonelycoder ###
+Firmware_Version_Number(){
+	echo "$1" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
+}
+############################################################################
 
 ### Code for these functions inspired by https://github.com/Adamm00 - credit to @Adamm ###
 Check_Lock(){
@@ -199,15 +205,15 @@ Update_Check(){
 	echo 'var updatestatus = "InProgress";' > "$SCRIPT_WEB_DIR/detect_update.js"
 	doupdate="false"
 	localver=$(grep "SCRIPT_VERSION=" /jffs/scripts/"$SCRIPT_NAME" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
-	/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep -qF "jackyaz" || { Print_Output true "404 error detected - stopping update" "$ERR"; return 1; }
-	serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
+	/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/404/$SCRIPT_NAME.sh" | grep -qF "jackyaz" || { Print_Output true "404 error detected - stopping update" "$ERR"; return 1; }
+	serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/version/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
 	if [ "$localver" != "$serverver" ]; then
 		doupdate="version"
 		Set_Version_Custom_Settings server "$serverver"
 		echo 'var updatestatus = "'"$serverver"'";'  > "$SCRIPT_WEB_DIR/detect_update.js"
 	else
 		localmd5="$(md5sum "/jffs/scripts/$SCRIPT_NAME" | awk '{print $1}')"
-		remotemd5="$(curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | md5sum | awk '{print $1}')"
+		remotemd5="$(curl -fsL --retry 3 "$SCRIPT_REPO/md5/$SCRIPT_NAME.sh" | md5sum | awk '{print $1}')"
 		if [ "$localmd5" != "$remotemd5" ]; then
 			doupdate="md5"
 			Set_Version_Custom_Settings server "$serverver-hotfix"
@@ -238,7 +244,7 @@ Update_Version(){
 		if [ "$isupdate" != "false" ]; then
 			Update_File Advanced_DHCP_Content.asp
 			
-			/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" -o "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+			Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
 			chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
 			Clear_Lock
 			if [ -z "$1" ]; then
@@ -254,11 +260,11 @@ Update_Version(){
 	fi
 	
 	if [ "$1" = "force" ]; then
-		serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
+		serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/version/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
 		Print_Output true "Downloading latest version ($serverver) of $SCRIPT_NAME" "$PASS"
 		Update_File Advanced_DHCP_Content.asp
 		Update_File shared-jy.tar.gz
-		/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/$SCRIPT_NAME.sh" -o "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+		Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
 		chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
 		Clear_Lock
 		if [ -z "$2" ]; then
@@ -273,9 +279,9 @@ Update_Version(){
 Update_File(){
 	if [ "$1" = "Advanced_DHCP_Content.asp" ]; then
 		tmpfile="/tmp/$1"
-		Download_File "$SCRIPT_REPO/$1" "$tmpfile"
+		Download_File "$SCRIPT_REPO/files/$1" "$tmpfile"
 		if ! diff -q "$tmpfile" "$SCRIPT_DIR/$1" >/dev/null 2>&1; then
-			Download_File "$SCRIPT_REPO/$1" "$SCRIPT_DIR/$1"
+			Download_File "$SCRIPT_REPO/files/$1" "$SCRIPT_DIR/$1"
 			Print_Output true "New version of $1 downloaded" "$PASS"
 			Mount_WebUI
 		fi
@@ -541,78 +547,95 @@ Export_FW_DHCP_JFFS(){
 		return 1
 	fi
 	
-	if [ -f /jffs/nvram/dhcp_hostnames ]; then
-		if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+	if [ "$(Firmware_Version_Number "$(nvram get buildno)")" -lt "$(Firmware_Version_Number 386.4)" ]; then
+		if [ -f /jffs/nvram/dhcp_hostnames ]; then
+			if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+				Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
+				Clear_Lock
+				return 1
+			fi
+		elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
 			Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
 			Clear_Lock
 			return 1
 		fi
-	elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
-		Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
-		Clear_Lock
-		return 1
-	fi
-	
-	if [ -f /jffs/nvram/dhcp_staticlist ]; then
-		sed 's/</\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist | sed '/^$/d' > /tmp/yazdhcp-ips.tmp
-	else
-		nvram get dhcp_staticlist | sed 's/</\n/g;s/>/ /g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp-ips.tmp
-	fi
-	
-	if [ -f /jffs/nvram/dhcp_hostnames ]; then
-		HOSTNAME_LIST=$(sed 's/>undefined//' /jffs/nvram/dhcp_hostnames)
-	else
-		HOSTNAME_LIST=$(nvram get dhcp_hostnames | sed 's/>undefined//')
-	fi
-	
-	OLDIFS=$IFS
-	IFS="<"
-	
-	for HOST in $HOSTNAME_LIST; do
-		if [ "$HOST" = "" ]; then
-			continue
-		fi
-		MAC=$(echo "$HOST" | cut -d ">" -f1)
-		HOSTNAME=$(echo "$HOST" | cut -d ">" -f2)
-		echo "$MAC $HOSTNAME" >> /tmp/yazdhcp-hosts.tmp
-	done
-	
-	IFS=$OLDIFS
-	
-	sed -i 's/ $//' /tmp/yazdhcp-ips.tmp
-	sed -i 's/ $//' /tmp/yazdhcp-hosts.tmp
-	
-	awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
-	
-	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
-	sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
-	
-	while IFS='' read -r line || [ -n "$line" ]; do
-		if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
-			echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
+		
+		if [ -f /jffs/nvram/dhcp_staticlist ]; then
+			sed 's/</\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist | sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 		else
-			if ! Validate_IP "$(echo "$line" | cut -d " " -f3)" >/dev/null 2>&1; then
-				printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
-			else
-				echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
-			fi
+			nvram get dhcp_staticlist | sed 's/</\n/g;s/>/ /g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 		fi
-	done < /tmp/yazdhcp_sorted.tmp
-	
-	rm -f /tmp/yazdhcp*.tmp
+		
+		if [ -f /jffs/nvram/dhcp_hostnames ]; then
+			HOSTNAME_LIST=$(sed 's/>undefined//' /jffs/nvram/dhcp_hostnames)
+		else
+			HOSTNAME_LIST=$(nvram get dhcp_hostnames | sed 's/>undefined//')
+		fi
+		
+		OLDIFS=$IFS
+		IFS="<"
+		
+		for HOST in $HOSTNAME_LIST; do
+			if [ "$HOST" = "" ]; then
+				continue
+			fi
+			MAC=$(echo "$HOST" | cut -d ">" -f1)
+			HOSTNAME=$(echo "$HOST" | cut -d ">" -f2)
+			echo "$MAC $HOSTNAME" >> /tmp/yazdhcp-hosts.tmp
+		done
+		
+		IFS=$OLDIFS
+		
+		sed -i 's/ $//' /tmp/yazdhcp-ips.tmp
+		sed -i 's/ $//' /tmp/yazdhcp-hosts.tmp
+		
+		awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
+		
+		echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
+		sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
+		
+		while IFS='' read -r line || [ -n "$line" ]; do
+			if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
+				echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
+			else
+				if ! Validate_IP "$(echo "$line" | cut -d " " -f3)" >/dev/null 2>&1; then
+					printf "%s,\\n" "$(echo "$line" | sed 's/ /,/g')" >> "$SCRIPT_CONF"
+				else
+					echo "$line" | awk '{ print ""$1","$2","","$3""; }' >> "$SCRIPT_CONF"
+				fi
+			fi
+		done < /tmp/yazdhcp_sorted.tmp
+		
+		rm -f /tmp/yazdhcp*.tmp
+		
+		if [ -f /jffs/nvram/dhcp_hostnames ]; then
+			cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames"
+			rm -f /jffs/nvram/dhcp_hostnames
+		fi
+		nvram get dhcp_hostnames > "$SCRIPT_DIR/.nvram_dhcp_hostnames"
+		nvram unset dhcp_hostnames
+	else
+		if [ -f /jffs/nvram/dhcp_staticlist ]; then
+			sed 's/</\n/g;s/>/|/g;s/<//g' /jffs/nvram/dhcp_staticlist | sed '/^$/d' > /tmp/yazdhcp.tmp
+		else
+			nvram get dhcp_staticlist | sed 's/</\n/g;s/>/|/g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp.tmp
+		fi
+		
+		echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
+		sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
+		
+		while IFS='' read -r line || [ -n "$line" ]; do
+			echo "$line" | awk 'FS="|" { print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
+		done < /tmp/yazdhcp_sorted.tmp
+		
+		rm -f /tmp/yazdhcp*.tmp
+	fi
 	
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist"
 	fi
 	nvram get dhcp_staticlist > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
-	
-	if [ -f /jffs/nvram/dhcp_hostnames ]; then
-		cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames"
-		rm -f /jffs/nvram/dhcp_hostnames
-	fi
-	nvram get dhcp_hostnames > "$SCRIPT_DIR/.nvram_dhcp_hostnames"
-	nvram unset dhcp_hostnames
 	
 	nvram commit
 	
@@ -1009,13 +1032,13 @@ case "$1" in
 	;;
 	develop)
 		SCRIPT_BRANCH="develop"
-		SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
+		SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 		Update_Version force
 		exit 0
 	;;
 	stable)
 		SCRIPT_BRANCH="master"
-		SCRIPT_REPO="https://raw.githubusercontent.com/jackyaz/$SCRIPT_NAME/$SCRIPT_BRANCH"
+		SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 		Update_Version force
 		exit 0
 	;;

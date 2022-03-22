@@ -169,9 +169,12 @@ function ParseCSVData(data){
 	var settingslength = 0;
 	for(var i = 0; i < data.length; i++){
 		var ipvalue = data[i].IP;
+		/*
+		Remove uneeded check, just use full IP always
 		if(document.form.lan_netmask.value == "255.255.255.0"){
 			ipvalue = data[i].IP.split(".")[3]
 		}
+		*/
 		if(data[i].DNS.length > 0 && data[i].HOSTNAME.length >= 0){
 			settingslength+=(data[i].MAC+">"+ipvalue+">"+data[i].HOSTNAME+">"+data[i].DNS+">").length;
 		}
@@ -692,10 +695,13 @@ function applyRule(){
 		
 		Object.keys(manually_dhcp_list_array).forEach(function(key){
 			var ipvalue = key;
+			/* 
+			REMOVE UNEEDED CHECK, JUST USE FULL IP ALWAYS
 			if(document.form.lan_netmask.value == "255.255.255.0"){
 				ipvalue = key.split(".")[3]
 			}
-			
+			*/ 
+
 			if(manually_dhcp_list_array[key].dns.length > 0 && manually_dhcp_list_array[key].hostname.length >= 0){
 				document.form.YazDHCP_clients.value += "<" + manually_dhcp_list_array[key].mac + ">" + ipvalue + ">" + manually_dhcp_list_array[key].hostname + ">" + manually_dhcp_list_array[key].dns + ">";
 			}
@@ -806,6 +812,8 @@ function validate_dhcp_range(ip_obj){
 		return 0;
 	}
 	
+	/*
+	REMOVE CHECK THAT PREVENTS MOD WORKING
 	subnet_head = getSubnet(document.form.lan_ipaddr.value, document.form.lan_netmask.value, "head");
 	subnet_end = getSubnet(document.form.lan_ipaddr.value, document.form.lan_netmask.value, "end");
 	
@@ -816,6 +824,7 @@ function validate_dhcp_range(ip_obj){
 		ip_obj.select();
 		return 0;
 	}
+	*/
 	
 	return 1;
 }

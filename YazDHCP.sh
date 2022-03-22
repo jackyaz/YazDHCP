@@ -17,7 +17,7 @@
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.4"
+readonly SCRIPT_VERSION="v1.0.5"
 SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -142,12 +142,17 @@ Conf_FromSettings(){
 			done < /tmp/yazdhcp_clients_parsed.tmp
 			
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
-			LANNETMASK="$(nvram get lan_netmask)"
-			if [ "$LANNETMASK" = "255.255.255.0" ]; then
-				awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
-			else
-				cp "$SCRIPT_CONF" "$SCRIPT_CONF.tmp"
-			fi
+
+			# Remove uneeded check, just use full IP always
+			# LANNETMASK="$(nvram get lan_netmask)"
+			# if [ "$LANNETMASK" = "255.255.255.0" ]; then
+			# 	awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=lansub"."$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+			# else
+			# 	cp "$SCRIPT_CONF" "$SCRIPT_CONF.tmp"
+			# fi
+		
+			awk -F "," -v lansub="$LANSUBNET" 'FNR==1{print $0; next} BEGIN {OFS = ","} $2=$2' "$SCRIPT_CONF" > "$SCRIPT_CONF.tmp"
+
 			sort -t . -k 3,3n -k 4,4n "$SCRIPT_CONF.tmp" > "$SCRIPT_CONF"
 			rm -f "$SCRIPT_CONF.tmp"
 			

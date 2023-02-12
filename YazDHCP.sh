@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Jan-28].
+# Last Modified: Martinski W. [2023-Jan-30].
 #---------------------------------------------------------
 
 # shellcheck disable=SC2155
@@ -131,7 +131,7 @@ Validate_IP(){
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Jan-28] ##
+## Added/modified by Martinski W. [2023-Jan-30] ##
 ##----------------------------------------------##
 # The DHCP Lease Time values can be given in:
 # seconds, minutes, hours, days, or weeks.
@@ -145,9 +145,10 @@ DHCP_LeaseValueToSeconds()
    timeUnits="X"  timeFactor=1  timeNumber="$1"
 
    if [ "$1" = "0" ] || [ "$1" = "$InfiniteLeaseTimeTag" ]
-   then
-      echo "$InfiniteLeaseTimeSecs" ; return 0
-   fi
+   then echo "$InfiniteLeaseTimeSecs" ; return 0 ; fi
+
+   if echo "$1" | grep -q "^0.*"
+   then echo "-1" ; return 1 ; fi
 
    if echo "$1" | grep -q "^[0-9]\{1,7\}$"
    then

@@ -12,12 +12,14 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
+# Last Modified: Martinski W. [2023-Jan-30].
+#---------------------------------------------------------
 
 # shellcheck disable=SC2155
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.4"
+readonly SCRIPT_VERSION="v1.0.5"
 SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
@@ -39,6 +41,23 @@ readonly PASS="\\e[32m"
 ### Start of router environment variables ###
 [ -z "$(nvram get odmpid)" ] && ROUTER_MODEL=$(nvram get productid) || ROUTER_MODEL=$(nvram get odmpid)
 ### End of router environment variables ###
+
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Jan-28] ##
+##----------------------------------------------##
+# DHCP Lease Time: Min & Max Values in seconds.
+# 2 minutes=120 to 90 days=7776000 (inclusive).
+# Single '0' or 'I' indicates "infinite" value.
+# For NVRAM the "infinite" value (in secs.) is
+# 1092 days (i.e. 156 weeks, or ~=3 years).
+#------------------------------------------------#
+readonly MinDHCPLeaseTime=120
+readonly MaxDHCPLeaseTime=7776000
+readonly InfiniteLeaseTimeTag="I"
+readonly InfiniteLeaseTimeSecs=94348800
+readonly YazDHCP_LEASEtag="DHCP_LEASE"
+readonly DHCP_LEASE_FILE="DHCP_Lease"
+readonly SCRIPT_DHCP_LEASE_CONF="${SCRIPT_DIR}/$DHCP_LEASE_FILE"
 
 # $1 = print to syslog, $2 = message to print, $3 = log level
 Print_Output(){
@@ -111,17 +130,120 @@ Validate_IP(){
 	fi
 }
 
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Jan-30] ##
+##----------------------------------------------##
+# The DHCP Lease Time values can be given in:
+# seconds, minutes, hours, days, or weeks.
+# Single '0' or 'I' indicates "infinite" value.
+#------------------------------------------------#
+DHCP_LeaseValueToSeconds()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ]
+   then echo "-1" ; return 1 ; fi
+
+   timeUnits="X"  timeFactor=1  timeNumber="$1"
+
+   if [ "$1" = "0" ] || [ "$1" = "$InfiniteLeaseTimeTag" ]
+   then echo "$InfiniteLeaseTimeSecs" ; return 0 ; fi
+
+   if echo "$1" | grep -q "^0.*"
+   then echo "-1" ; return 1 ; fi
+
+   if echo "$1" | grep -q "^[0-9]\{1,7\}$"
+   then
+		timeUnits="s"
+		timeNumber="$1"
+   elif echo "$1" | grep -q "^[0-9]\{1,6\}[smhdw]\{1\}$"
+   then
+		timeUnits="$(echo "$1" | awk '{print substr($0,length($0),1)}')"
+		timeNumber="$(echo "$1" | awk '{print substr($0,0,length($0)-1)}')"
+   fi
+
+   case "$timeUnits" in
+		s) timeFactor=1 ;;
+		m) timeFactor=60 ;;
+		h) timeFactor=3600 ;;
+		d) timeFactor=86400 ;;
+		w) timeFactor=604800 ;;
+   esac
+
+   if ! echo "$timeNumber" | grep -q "^[0-9]\{1,7\}$"
+   then echo "-1" ; return 1 ; fi
+
+   timeValue="$((timeNumber * timeFactor))"
+   echo "$timeValue"
+}
+
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jan-28] ##
+##----------------------------------------------##
+Check_DHCP_LeaseTime()
+{
+   NVRAM_LeaseKey="dhcp_lease"
+   NVRAM_LeaseTime="$(nvram get $NVRAM_LeaseKey)"
+
+   if [ ! -f "$SCRIPT_DHCP_LEASE_CONF" ]
+   then
+      echo "## DO *NOT* EDIT THIS FILE. IT'S DYNAMICALLY UPDATED ##" > "$SCRIPT_DHCP_LEASE_CONF"
+      echo "DHCP_LEASE=$NVRAM_LeaseTime" >> "$SCRIPT_DHCP_LEASE_CONF"
+      return 0
+   fi
+
+   if ! grep -q "^DHCP_LEASE=" "$SCRIPT_DHCP_LEASE_CONF"
+   then
+      echo "DHCP_LEASE=$NVRAM_LeaseTime" >> "$SCRIPT_DHCP_LEASE_CONF"
+      return 0
+   fi
+
+   LeaseValue="$(grep "^DHCP_LEASE=" "$SCRIPT_DHCP_LEASE_CONF" | awk -F '=' '{print $2}')"
+   if [ -z "$LeaseValue" ]
+   then
+      sed -i "s/DHCP_LEASE=.*/DHCP_LEASE=$NVRAM_LeaseTime/" "$SCRIPT_DHCP_LEASE_CONF"
+      return 0
+   fi
+
+   LeaseTime="$(DHCP_LeaseValueToSeconds "$LeaseValue")"
+
+   if [ "$LeaseTime" = "$InfiniteLeaseTimeSecs" ] && \
+      [ "$LeaseTime" != "$NVRAM_LeaseTime" ]
+   then
+      nvram set ${NVRAM_LeaseKey}="$LeaseTime"
+      nvram commit
+      return 0
+   fi
+
+   if [ "$LeaseTime" = "-1" ] || \
+      [ "$LeaseTime" -lt "$MinDHCPLeaseTime" ] || \
+      [ "$LeaseTime" -gt "$MaxDHCPLeaseTime" ] || \
+      [ "$LeaseTime" -eq "$NVRAM_LeaseTime" ]
+   then return 1 ; fi
+
+   nvram set ${NVRAM_LeaseKey}="$LeaseTime"
+   nvram commit
+}
+
+##----------------------------------------##
+## Modified by Martinski W. [2023-Jan-28] ##
+##----------------------------------------##
 Conf_FromSettings(){
 	SETTINGSFILE="/jffs/addons/custom_settings.txt"
 	TMPFILE="/tmp/yazdhcp_clients.tmp"
 	if [ -f "$SETTINGSFILE" ]; then
-		if [ "$(grep "yazdhcp_" $SETTINGSFILE | grep -v "version" -c)" -gt 0 ]; then
+		if [ "$(grep -E "yazdhcp_|^$YazDHCP_LEASEtag" $SETTINGSFILE | grep -v "version" -c)" -gt 0 ]; then
 			Print_Output true "Updated DHCP information from WebUI found, merging into $SCRIPT_CONF" "$PASS"
 			cp -a "$SCRIPT_CONF" "$SCRIPT_CONF.bak"
-			grep "yazdhcp_" "$SETTINGSFILE" | grep -v "version" > "$TMPFILE"
+			grep -E "yazdhcp_|^$YazDHCP_LEASEtag" "$SETTINGSFILE" | grep -v "version" > "$TMPFILE"
 			sed -i "s/yazdhcp_//g;s/ /=/g" "$TMPFILE"
 			DHCPCLIENTS=""
-			while IFS='' read -r line || [ -n "$line" ]; do
+			while IFS='' read -r line || [ -n "$line" ]
+			do
+				if echo "$line" | grep -q "^${YazDHCP_LEASEtag}="
+				then
+					LEASE_VALUE="$(echo "$line" | cut -d '=' -f2)"
+					sed -i "s/DHCP_LEASE=.*/DHCP_LEASE=$LEASE_VALUE/" "$SCRIPT_DHCP_LEASE_CONF"
+					continue
+				fi
 				DHCPCLIENTS="${DHCPCLIENTS}$(echo "$line" | cut -f2 -d'=')"
 			done < "$TMPFILE"
 			
@@ -153,11 +275,13 @@ Conf_FromSettings(){
 			
 			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"
 			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"
+			sed -i "\\~${YazDHCP_LEASEtag}~d" "$SETTINGSFILE"
 			mv "$SETTINGSFILE" "$SETTINGSFILE.bak"
 			cat "$SETTINGSFILE.bak" "$TMPFILE" > "$SETTINGSFILE"
 			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
 			
+			Check_DHCP_LeaseTime
 			Update_Hostnames
 			Update_Staticlist
 			Update_Optionslist
@@ -327,11 +451,24 @@ Create_Dirs(){
 	fi
 }
 
+##-------------------------------------##
+## Added by Martinski W. [2023-Jan-28] ##
+##-------------------------------------##
+Create_DHCP_LeaseConfig()
+{
+   Check_DHCP_LeaseTime
+   ln -s "$SCRIPT_DHCP_LEASE_CONF" "${SCRIPT_WEB_DIR}/${DHCP_LEASE_FILE}.htm" 2>/dev/null
+}
+
+##----------------------------------------##
+## Modified by Martinski W. [2023-Jan-28] ##
+##----------------------------------------##
 Create_Symlinks(){
 	rm -rf "${SCRIPT_WEB_DIR:?}/"* 2>/dev/null
 	
-	ln -s "$SCRIPT_CONF"  "$SCRIPT_WEB_DIR/DHCP_clients.htm" 2>/dev/null
-	
+	ln -s "$SCRIPT_CONF" "$SCRIPT_WEB_DIR/DHCP_clients.htm" 2>/dev/null
+	Create_DHCP_LeaseConfig
+
 	if [ ! -d "$SHARED_WEB_DIR" ]; then
 		ln -s "$SHARED_DIR" "$SHARED_WEB_DIR" 2>/dev/null
 	fi

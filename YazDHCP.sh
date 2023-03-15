@@ -12,15 +12,15 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Jan-30].
+# Last Modified: Martinski W. [2023-Mar-14].
 #---------------------------------------------------------
 
 # shellcheck disable=SC2155
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
-readonly SCRIPT_VERSION="v1.0.5"
-SCRIPT_BRANCH="master"
+readonly SCRIPT_VERSION="v1.0.6"
+SCRIPT_BRANCH="develop"
 SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
 readonly SCRIPT_CONF="$SCRIPT_DIR/DHCP_clients"
@@ -176,7 +176,7 @@ DHCP_LeaseValueToSeconds()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jan-28] ##
+## Added/Modified by Martinski W. [2023-Mar-14] ##
 ##----------------------------------------------##
 Check_DHCP_LeaseTime()
 {
@@ -210,6 +210,7 @@ Check_DHCP_LeaseTime()
    then
       nvram set ${NVRAM_LeaseKey}="$LeaseTime"
       nvram commit
+      RESTART_DNSMASQ=true
       return 0
    fi
 
@@ -221,10 +222,11 @@ Check_DHCP_LeaseTime()
 
    nvram set ${NVRAM_LeaseKey}="$LeaseTime"
    nvram commit
+   RESTART_DNSMASQ=true
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-Jan-28] ##
+## Modified by Martinski W. [2023-Mar-14] ##
 ##----------------------------------------##
 Conf_FromSettings(){
 	SETTINGSFILE="/jffs/addons/custom_settings.txt"
@@ -281,10 +283,12 @@ Conf_FromSettings(){
 			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
 			
+			RESTART_DNSMASQ=false
 			Check_DHCP_LeaseTime
 			Update_Hostnames
 			Update_Staticlist
 			Update_Optionslist
+			if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
 			
 			Print_Output true "Merge of updated DHCP client information from WebUI completed successfully" "$PASS"
 		else
@@ -457,7 +461,7 @@ Create_Dirs(){
 Create_DHCP_LeaseConfig()
 {
    Check_DHCP_LeaseTime
-   ln -s "$SCRIPT_DHCP_LEASE_CONF" "${SCRIPT_WEB_DIR}/${DHCP_LEASE_FILE}.htm" 2>/dev/null
+   ln -sf "$SCRIPT_DHCP_LEASE_CONF" "${SCRIPT_WEB_DIR}/${DHCP_LEASE_FILE}.htm" 2>/dev/null
 }
 
 ##----------------------------------------##
@@ -479,22 +483,19 @@ Auto_ServiceEvent(){
 		create)
 			if [ -f /jffs/scripts/service-event ]; then
 				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/service-event)
-				# shellcheck disable=SC2016
-				STARTUPLINECOUNTEX=$(grep -cx "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" /jffs/scripts/service-event)
+				STARTUPLINECOUNTEX=$(grep -cx 'if echo "$2" | /bin/grep -q "'"$SCRIPT_NAME"'" ; then { /jffs/scripts/'"$SCRIPT_NAME"' service_event "$@" & }; fi # '"$SCRIPT_NAME" /jffs/scripts/service-event)
 				
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/service-event
 				fi
 				
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
-					# shellcheck disable=SC2016
-					echo "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
+					echo 'if echo "$2" | /bin/grep -q "'"$SCRIPT_NAME"'" ; then { /jffs/scripts/'"$SCRIPT_NAME"' service_event "$@" & }; fi # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
 				fi
 			else
 				echo "#!/bin/sh" > /jffs/scripts/service-event
 				echo "" >> /jffs/scripts/service-event
-				# shellcheck disable=SC2016
-				echo "/jffs/scripts/$SCRIPT_NAME service_event"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
+				echo 'if echo "$2" | /bin/grep -q "'"$SCRIPT_NAME"'" ; then { /jffs/scripts/'"$SCRIPT_NAME"' service_event "$@" & }; fi # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
 				chmod 0755 /jffs/scripts/service-event
 			fi
 		;;
@@ -663,6 +664,9 @@ PressEnter(){
 	return 0
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS(){
 	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from nvram to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
@@ -778,14 +782,19 @@ Export_FW_DHCP_JFFS(){
 	
 	Print_Output true "DHCP information successfully exported from nvram" "$PASS"
 	
+	RESTART_DNSMASQ=false
 	Update_Hostnames
 	Update_Staticlist
 	Update_Optionslist
+	if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
 	
 	Clear_Lock
 }
 ##################################################################
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 Update_Hostnames(){
 	existingmd5=""
 	if [ -f "$SCRIPT_DIR/.hostnames" ]; then
@@ -796,12 +805,15 @@ Update_Hostnames(){
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP hostname list updated successfully" "$PASS"
-		service restart_dnsmasq >/dev/null 2>&1
+		RESTART_DNSMASQ=true
 	else
 		Print_Output true "DHCP hostname list unchanged" "$WARN"
 	fi
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 Update_Staticlist(){
 	existingmd5=""
 	if [ -f "$SCRIPT_DIR/.staticlist" ]; then
@@ -811,12 +823,15 @@ Update_Staticlist(){
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.staticlist" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP static assignment list updated successfully" "$PASS"
-		service restart_dnsmasq >/dev/null 2>&1
+		RESTART_DNSMASQ=true
 	else
 		Print_Output true "DHCP static assignment list unchanged" "$WARN"
 	fi
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 Update_Optionslist(){
 	existingmd5=""
 	if [ -f "$SCRIPT_DIR/.optionslist" ]; then
@@ -826,7 +841,7 @@ Update_Optionslist(){
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.optionslist" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP options list updated successfully" "$PASS"
-		service restart_dnsmasq >/dev/null 2>&1
+		RESTART_DNSMASQ=true
 	else
 		Print_Output true "DHCP options list unchanged" "$WARN"
 	fi
@@ -997,10 +1012,15 @@ Menu_Install(){
 	Clear_Lock
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 Menu_ProcessDHCPClients(){
+	RESTART_DNSMASQ=false
 	Update_Hostnames
 	Update_Staticlist
 	Update_Optionslist
+	if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
 	
 	Clear_Lock
 }
@@ -1102,7 +1122,7 @@ Check_Requirements(){
 	fi
 }
 
-if [ -z "$1" ]; then
+if [ $# -eq 0 ] || [ -z "$1" ]; then
 	Create_Dirs
 	Set_Version_Custom_Settings local
 	Create_Symlinks
@@ -1129,16 +1149,17 @@ case "$1" in
 		Menu_Startup
 		exit 0
 	;;
+	##----------------------------------------##
+	## Modified by Martinski W. [2023-Mar-14] ##
+	##----------------------------------------##
 	service_event)
-		if [ "$2" = "start" ] && [ "$3" = "$SCRIPT_NAME" ]; then
-			Conf_FromSettings
-			exit 0
-		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}checkupdate" ]; then
-			Update_Check
-			exit 0
-		elif [ "$2" = "start" ] && [ "$3" = "${SCRIPT_NAME}doupdate" ]; then
-			Update_Version force unattended
-			exit 0
+		if [ "$2" = "start" ]
+		then
+			case "$3" in
+			    "$SCRIPT_NAME")              Conf_FromSettings ;;
+			    "${SCRIPT_NAME}checkupdate") Update_Check ;;
+			    "${SCRIPT_NAME}doupdate")    Update_Version force unattended ;;
+			esac
 		fi
 		exit 0
 	;;

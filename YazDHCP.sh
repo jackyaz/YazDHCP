@@ -12,10 +12,13 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Mar-14].
+# Last Modified: Martinski W. [2023-Apr-03].
 #---------------------------------------------------------
 
+#############################################
 # shellcheck disable=SC2155
+# shellcheck disable=SC3045
+#############################################
 
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
@@ -58,6 +61,61 @@ readonly InfiniteLeaseTimeSecs=94348800
 readonly YazDHCP_LEASEtag="DHCP_LEASE"
 readonly DHCP_LEASE_FILE="DHCP_Lease"
 readonly SCRIPT_DHCP_LEASE_CONF="${SCRIPT_DIR}/$DHCP_LEASE_FILE"
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-01] ##
+##-------------------------------------##
+## Start of script variables for the "Save Custom User Icons" feature ##
+##--------------------------------------------------------------------##
+readonly theJFFSdir="/jffs"
+readonly userIconsDIRname="usericon"
+readonly userIconsDIRpath="${theJFFSdir}/$userIconsDIRname"
+readonly userIconsSavedFLEextn="tar.gzip"
+readonly userIconsSavedFLEname="CustomUserIcons"
+readonly userIconsSavedDIRname="SavedUserIcons"
+readonly userIconsSavedCFGname="CustomUserIconsConfig"
+readonly userIconsSavedSTAname="CustomUserIconsStatus"
+readonly defUserIconsSavedDir="/opt/var/$userIconsSavedDIRname"
+readonly altUserIconsSavedDir="/jffs/configs/$userIconsSavedDIRname"
+readonly userIconsVarPrefix="Icons_"
+readonly savedFileDateTimeStr="%Y-%m-%d_%H-%M-%S"
+readonly NVRAM_Folder="${theJFFSdir}/nvram"
+readonly NVRAM_ClientsKeyName="custom_clientlist"
+readonly NVRAM_ClientsKeyVARsaved="${userIconsDIRpath}/NVRAMvar_${NVRAM_ClientsKeyName}.TMP"
+readonly NVRAM_ClientsKeyFLEsaved="${userIconsDIRpath}/NVRAMfile_${NVRAM_ClientsKeyName}.TMP"
+readonly SCRIPT_USER_ICONS_STATUS="/tmp/$userIconsSavedSTAname"
+readonly SCRIPT_USER_ICONS_CONFIG="${SCRIPT_DIR}/$userIconsSavedCFGname"
+readonly iconsCFGCommentLine="## DO *NOT* EDIT THIS FILE BELOW THIS LINE. IT'S DYNAMICALLY UPDATED ##"
+
+readonly theMinUserIconsSavedValue=4
+readonly theMaxUserIconsSavedValue=52
+readonly defMaxUserIconsSavedFiles=12
+
+readonly NOct="\033[0m"
+readonly BOLDtext="\033[1m"
+readonly DarkRED="\033[0;31m"
+readonly LghtGREEN="\033[1;32m"
+readonly LghtYELLOW="\033[1;33m"
+readonly REDct="${DarkRED}${BOLDtext}"
+readonly GRNct="${LghtGREEN}${BOLDtext}"
+readonly YLWct="${LghtYELLOW}${BOLDtext}"
+
+readonly ArchivDirOpt="dp"
+readonly SaveIconsOpt="sv"
+readonly RestIconsOpt="rt"
+readonly DeltIconsOpt="de"
+readonly ListIconsOpt="ls"
+
+iconsFound=false
+archivesFound=false
+waitToConfirm=false
+maxUserIconsSavedFiles="$defMaxUserIconsSavedFiles"
+theUserIconsSavedDir="$defUserIconsSavedDir"
+userIconsSavedFPath="${theUserIconsSavedDir}/$userIconsSavedFLEname"
+theSavedFilesMatch="${userIconsSavedFPath}_*.$userIconsSavedFLEextn"
+##------------------------------------------------------------------##
+## End of script variables for the "Save Custom User Icons" feature ##
+##==================================================================##
 
 # $1 = print to syslog, $2 = message to print, $3 = log level
 Print_Output(){
@@ -223,6 +281,160 @@ Check_DHCP_LeaseTime()
    nvram set ${NVRAM_LeaseKey}="$LeaseTime"
    nvram commit
    RESTART_DNSMASQ=true
+}
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-01] ##
+##-------------------------------------##
+GetFromCustomUserIconsConfig()
+{
+   keyName="${userIconsVarPrefix}$1"
+   if [ $# -eq 0 ] || [ -z "$1" ] || \
+      [ ! -f "$SCRIPT_USER_ICONS_CONFIG" ] || \
+      ! grep -q "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG"
+   then echo "" ; return 1 ; fi
+
+   keyValue="$(grep "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG" | awk -F '=' '{print $2}')"
+   echo "$keyValue" ; return 0
+}
+
+FixCustomUserIconsConfig()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1; fi
+
+   keyName="${userIconsVarPrefix}$1"
+   if ! grep -q "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG"
+   then
+       echo "${keyName}=$2" >> "$SCRIPT_USER_ICONS_CONFIG"
+       return 0
+   fi
+
+   keyValue="$(grep "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG" | awk -F '=' '{print $2}')"
+   if [ -z "$keyValue" ]
+   then
+       fixedVal="$(echo "$2" | sed 's/[\/.*-]/\\&/g')"
+       sed -i "s/${keyName}=.*/${keyName}=${fixedVal}/" "$SCRIPT_USER_ICONS_CONFIG"
+   fi
+}
+
+ClearCustomUserIconsStatus()
+{ rm -f "$SCRIPT_USER_ICONS_STATUS" ; }
+
+UpdateCustomUserIconsStatus()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1; fi
+
+   if [ "$2" = "NONE" ] || [ ! -f "$2" ]
+   then
+       echo "${userIconsVarPrefix}${1}=NONE" > "$SCRIPT_USER_ICONS_STATUS"
+   else
+       echo "${userIconsVarPrefix}DIRP=${2%/*}"   > "$SCRIPT_USER_ICONS_STATUS"
+       echo "${userIconsVarPrefix}FILE=${2##*/}" >> "$SCRIPT_USER_ICONS_STATUS"
+       echo "${userIconsVarPrefix}${1}=OK"       >> "$SCRIPT_USER_ICONS_STATUS"
+   fi
+}
+
+UpdateCustomUserIconsConfig()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1; fi
+
+   if [ "$1" = "SAVED_DIR" ]
+   then
+       theUserIconsSavedDir="$2"
+       userIconsSavedFPath="${2}/$userIconsSavedFLEname"
+       theSavedFilesMatch="${userIconsSavedFPath}_*.$userIconsSavedFLEextn"
+   fi
+   if [ $# -eq 3 ] && [ "$3" = "UpdateStatus" ] && \
+      { [ "$1" = "SAVED" ] || [ "$1" = "RESTD" ] ; } && \
+      { [ "$2" = "NONE" ] || [ -f "$2" ] ; }
+   then UpdateCustomUserIconsStatus "$1" "$2" ; fi
+
+   keyName="${userIconsVarPrefix}$1"
+   if ! grep -q "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG"
+   then
+       echo "${keyName}=$2" >> "$SCRIPT_USER_ICONS_CONFIG"
+       return 0
+   fi
+
+   keyValue="$(grep "^${keyName}=" "$SCRIPT_USER_ICONS_CONFIG" | awk -F '=' '{print $2}')"
+   if [ -z "$keyValue" ] || [ "$keyValue" != "$2" ]
+   then
+       fixedVal="$(echo "$2" | sed 's/[\/.*-]/\\&/g')"
+       sed -i "s/${keyName}=.*/${keyName}=${fixedVal}/" "$SCRIPT_USER_ICONS_CONFIG"
+   fi
+}
+
+InitCustomUserIconsConfig()
+{
+   thePrefix="$userIconsVarPrefix"
+   if [ ! -f "$SCRIPT_USER_ICONS_CONFIG" ]
+   then
+       echo "${thePrefix}SAVED_MAX=12"   >  "$SCRIPT_USER_ICONS_CONFIG"
+       echo "${thePrefix}SAVED_DIR=NONE" >> "$SCRIPT_USER_ICONS_CONFIG"
+       echo "$iconsCFGCommentLine"       >> "$SCRIPT_USER_ICONS_CONFIG"
+       echo "${thePrefix}FOUND=FALSE"    >> "$SCRIPT_USER_ICONS_CONFIG"
+       echo "${thePrefix}SAVED=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
+       echo "${thePrefix}RESTD=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
+       return 0
+   fi
+   if ! grep -q "^${thePrefix}SAVED_DIR=" "$SCRIPT_USER_ICONS_CONFIG"
+   then
+       theCommentStr="$(echo "$iconsCFGCommentLine" | sed 's/[.*-]/\\&/g')"
+       sed -i "\\~${theCommentStr}~d" "$SCRIPT_USER_ICONS_CONFIG"
+       sed -i "1 i ${thePrefix}SAVED_DIR=NONE" "$SCRIPT_USER_ICONS_CONFIG"
+       sed -i "2 i ${iconsCFGCommentLine}" "$SCRIPT_USER_ICONS_CONFIG"
+   fi
+   if ! grep -q "^${thePrefix}SAVED_MAX=" "$SCRIPT_USER_ICONS_CONFIG"
+   then
+       sed -i "1 i ${thePrefix}SAVED_MAX=12" "$SCRIPT_USER_ICONS_CONFIG"
+   fi
+   return 1
+}
+
+GetUserIconsSavedVars()
+{
+   theUserIconsSavedDir="$(GetFromCustomUserIconsConfig "SAVED_DIR")"
+   if [ -z "$theUserIconsSavedDir" ] || [ "$theUserIconsSavedDir" = "NONE" ]
+   then
+       theUserIconsSavedDir="$defUserIconsSavedDir"
+   else
+       [ ! -d "$theUserIconsSavedDir" ] && mkdir -m 755 "$theUserIconsSavedDir" 2>/dev/null
+       [ ! -d "$theUserIconsSavedDir" ] && theUserIconsSavedDir="$defUserIconsSavedDir"
+   fi
+
+   [ ! -d "$theUserIconsSavedDir" ] && mkdir -m 755 "$theUserIconsSavedDir" 2>/dev/null
+   [ ! -d "$theUserIconsSavedDir" ] && theUserIconsSavedDir="$altUserIconsSavedDir"
+
+   mkdir -m 755 "$theUserIconsSavedDir" 2>/dev/null
+   if [ ! -d "$theUserIconsSavedDir" ]
+   then
+       Print_Output true "**ERROR**: Directory [$theUserIconsSavedDir] NOT FOUND." "$ERR"
+       return 1
+   fi
+
+   maxUserIconsSavedFiles="$(GetFromCustomUserIconsConfig "SAVED_MAX")"
+   if [ -z "$maxUserIconsSavedFiles" ] || \
+      ! echo "$maxUserIconsSavedFiles" | grep -qE "^[0-9]{1,}$" || \
+      [ "$maxUserIconsSavedFiles" -lt "$theMinUserIconsSavedValue" ] || \
+      [ "$maxUserIconsSavedFiles" -gt "$theMaxUserIconsSavedValue" ]
+   then maxUserIconsSavedFiles="$defMaxUserIconsSavedFiles" ; fi
+
+   UpdateCustomUserIconsConfig SAVED_MAX "$maxUserIconsSavedFiles"
+   UpdateCustomUserIconsConfig SAVED_DIR "$theUserIconsSavedDir"
+   return 0
+}
+
+Check_CustomUserIconsConfig()
+{
+   if ! InitCustomUserIconsConfig
+   then
+       FixCustomUserIconsConfig FOUND FALSE
+       FixCustomUserIconsConfig SAVED NONE
+       FixCustomUserIconsConfig RESTD NONE
+       FixCustomUserIconsConfig SAVED_MAX "$defMaxUserIconsSavedFiles"
+       FixCustomUserIconsConfig SAVED_DIR "$defUserIconsSavedDir"
+   fi
+   GetUserIconsSavedVars
 }
 
 ##----------------------------------------##
@@ -464,20 +676,34 @@ Create_DHCP_LeaseConfig()
    ln -sf "$SCRIPT_DHCP_LEASE_CONF" "${SCRIPT_WEB_DIR}/${DHCP_LEASE_FILE}.htm" 2>/dev/null
 }
 
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-01] ##
+##-------------------------------------##
+Create_CustomUserIconsConfig()
+{
+   Check_CustomUserIconsConfig
+   ln -sf "$SCRIPT_USER_ICONS_CONFIG" "${SCRIPT_WEB_DIR}/${userIconsSavedCFGname}.htm" 2>/dev/null
+   ln -sf "$SCRIPT_USER_ICONS_STATUS" "${SCRIPT_WEB_DIR}/${userIconsSavedSTAname}.htm" 2>/dev/null
+}
+
 ##----------------------------------------##
-## Modified by Martinski W. [2023-Jan-28] ##
+## Modified by Martinski W. [2023-Apr-01] ##
 ##----------------------------------------##
 Create_Symlinks(){
 	rm -rf "${SCRIPT_WEB_DIR:?}/"* 2>/dev/null
 	
 	ln -s "$SCRIPT_CONF" "$SCRIPT_WEB_DIR/DHCP_clients.htm" 2>/dev/null
 	Create_DHCP_LeaseConfig
+	Create_CustomUserIconsConfig
 
 	if [ ! -d "$SHARED_WEB_DIR" ]; then
 		ln -s "$SHARED_DIR" "$SHARED_WEB_DIR" 2>/dev/null
 	fi
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Mar-14] ##
+##----------------------------------------##
 Auto_ServiceEvent(){
 	case $1 in
 		create)
@@ -662,6 +888,574 @@ PressEnter(){
 		esac
 	done
 	return 0
+}
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-01] ##
+##-------------------------------------##
+_WaitForEnterKey_()
+{
+   ! $waitToConfirm && return 0
+   echo ; read -sp "Press enter key to continue..." ; echo
+}
+
+_WaitForConfirmation_()
+{
+   ! $waitToConfirm && return 0
+   read -n 3 -p "$1 [yY|nN] N? " YESorNO ; echo
+   if echo "$YESorNO" | grep -qE '^(Y|y|yes)$'
+   then return 0 ; else return 1 ; fi
+}
+
+_NVRAM_IconsCleanupFiles_()
+{ rm -f "$NVRAM_ClientsKeyVARsaved" "$NVRAM_ClientsKeyFLEsaved" ; }
+
+_NVRAM_IconsSaveKeyValue_()
+{
+   NVRAM_SavedOK=false
+
+   if [ -s "${NVRAM_Folder}/$NVRAM_ClientsKeyName" ]
+   then
+       cp -fp "${NVRAM_Folder}/$NVRAM_ClientsKeyName" "$NVRAM_ClientsKeyFLEsaved"
+       if [ $? -eq 0 ] ; then NVRAM_SavedOK=true ; fi
+   fi
+
+   theKeyValue="$(nvram get "$NVRAM_ClientsKeyName")"
+   if [ -n "$theKeyValue" ]
+   then
+       echo "$theKeyValue" > "$NVRAM_ClientsKeyVARsaved"
+       if [ $? -eq 0 ] ; then NVRAM_SavedOK=true ; fi
+   fi
+
+   "$NVRAM_SavedOK" && return 0
+
+   Print_Output true "*WARNING*: NVRAM variable \"${NVRAM_ClientsKeyName}\" is EMPTY or NOT FOUND." "$WARN"
+   return 1
+}
+
+_NVRAM_IconsRestoreKeyValue_()
+{
+   NVRAM_RestoredOK=false
+
+   if [ -d "$NVRAM_Folder" ] && [ -f "$NVRAM_ClientsKeyFLEsaved" ] && \
+      [ "$(ls -1 "$NVRAM_Folder" 2>/dev/null | wc -l)" -gt 0 ]
+   then
+       mv -f "$NVRAM_ClientsKeyFLEsaved" "${NVRAM_Folder}/$NVRAM_ClientsKeyName"
+       if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
+   fi
+
+   if [ -f "$NVRAM_ClientsKeyVARsaved" ]
+   then
+      theKeyValueSaved="$(cat "$NVRAM_ClientsKeyVARsaved")"
+      if [ "$(nvram get "$NVRAM_ClientsKeyName")" != "$theKeyValueSaved" ]
+      then
+          nvram set ${NVRAM_ClientsKeyName}="$theKeyValueSaved"
+          if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
+          nvram commit
+      fi
+   fi
+   _NVRAM_IconsCleanupFiles_
+
+   "$NVRAM_RestoredOK" && return 0
+
+   Print_Output true "*WARNING*: NVRAM variable \"${NVRAM_ClientsKeyName}\" was NOT restored." "$WARN"
+   return 1
+}
+
+CheckForCustomIconFiles()
+{
+   if [ -d "$userIconsDIRpath" ] && \
+      [ "$(ls -1 "$userIconsDIRpath" 2>/dev/null | wc -l)" -gt 0 ]
+   then
+       iconsFound=true
+       UpdateCustomUserIconsConfig FOUND TRUE
+       return 0
+   else
+       iconsFound=false
+       UpdateCustomUserIconsConfig FOUND FALSE
+       return 1
+   fi
+}
+
+CheckForSavedIconFiles()
+{
+   theFileCount="$(ls -1 $theSavedFilesMatch 2>/dev/null | wc -l)"
+   if [ ! -d "$theUserIconsSavedDir" ] || [ "$theFileCount" -eq 0 ]
+   then
+       archivesFound=false
+       UpdateCustomUserIconsConfig SAVED NONE
+       UpdateCustomUserIconsConfig RESTD NONE
+       return 1
+   fi
+
+   archivesFound=true  theArchiveFile=""
+
+   if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
+   then
+       while read -r FILE
+       do theArchiveFile="$FILE" ; break
+       done <<EOT
+$(ls -lt $theSavedFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+EOT
+       UpdateCustomUserIconsConfig SAVED "$theArchiveFile"
+       UpdateCustomUserIconsConfig RESTD "$theArchiveFile"
+   fi
+   return 0
+}
+
+CheckForMaxIconsSavedFiles()
+{
+   if ! CheckForSavedIconFiles "$@" || \
+      [ "$theFileCount" -le "$maxUserIconsSavedFiles" ]
+   then return 0 ; fi
+
+   if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
+   then   ## Remove the OLDEST archive ##
+       while read -r FILE
+       do rm -f "$FILE" ; break
+       done <<EOT
+$(ls -ltr $theSavedFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+EOT
+       return 0
+   fi
+
+   printf "\n${YLWct}**WARNING**:${NOct}\n"
+   printf "The number of saved archives [${REDct}${theFileCount}${NOct}] exceeds the maximum set [${GRNct}${maxUserIconsSavedFiles}${NOct}].\n"
+   printf "It's highly recommended that you either delete old archive files,\n"
+   printf "or move them off the router and save them on a different location.\n"
+   _WaitForEnterKey_
+}
+
+SaveCustomUserIcons()
+{
+   if ! CheckForCustomIconFiles
+   then
+       UpdateCustomUserIconsConfig SAVED NONE UpdateStatus
+       Print_Output true "**ERROR**: Directory [$userIconsDIRpath] is EMPTY or NOT FOUND." "$ERR"
+       return 1
+   fi
+   UpdateCustomUserIconsConfig SAVED WAIT
+   _NVRAM_IconsSaveKeyValue_
+
+   theFilePath="${userIconsSavedFPath}_$(date +"$savedFileDateTimeStr").$userIconsSavedFLEextn"
+   tar -czf "$theFilePath" -C "$theJFFSdir" "./$userIconsDIRname"
+   if [ $? -gt 1 ]
+   then
+       retCode=1
+       CheckForMaxIconsSavedFiles false
+       UpdateCustomUserIconsConfig SAVED NONE UpdateStatus
+       Print_Output true "**ERROR**: Could NOT save icon files." "$ERR"
+   else
+       retCode=0
+       CheckForMaxIconsSavedFiles true
+       UpdateCustomUserIconsConfig SAVED "$theFilePath" UpdateStatus
+       printf "All icon files were successfully saved in:\n[${GRNct}${theFilePath}${NOct}]\n"
+   fi
+   _NVRAM_IconsCleanupFiles_
+   _WaitForEnterKey_
+   return $retCode
+}
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-02] ##
+##-------------------------------------##
+_GetFileSelectionIndex_()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
+
+   if [ "$1" -eq 1 ]
+   then selStr="${GRNct}1${NOct} | ${GRNct}e${NOct}=Exit"
+   else selStr="${GRNct}1${NOct}-${GRNct}${1}${NOct} | ${GRNct}e${NOct}=Exit"
+   fi
+
+   if [ $# -lt 2 ] || [ "$2" != "-ALLOK" ]
+   then
+       AllOK=false
+       promptStr="Enter selection [${selStr}]?"
+   else
+       AllOK=true
+       promptStr="Enter selection [${selStr} | ${GRNct}all${NOct}]?"
+   fi
+   fileIndex=0  multiIndex=false
+   numRegEx="([1-9]|[1-9][0-9])"
+
+   while true
+   do
+       printf "${promptStr}  " ; read -r userInput
+       if [ -z "$userInput" ] ; then echo ; continue ; fi
+
+       if echo "$userInput" | grep -qE "^(e|exit|Exit)$"
+       then fileIndex="NONE" ; break ; fi
+
+       if $AllOK && echo "$userInput" | grep -qE "^(all|All)$"
+       then fileIndex="ALL" ; break ; fi
+
+       if echo "$userInput" | grep -qE "^${numRegEx}$" && \
+          [ "$userInput" -gt 0 ] && [ "$userInput" -le "$1" ]
+       then fileIndex="$userInput" ; break ; fi
+
+       if $AllOK && echo "$userInput" | grep -qE "^${numRegEx}(,[ ]*${numRegEx}[ ]*)+$"
+       then ## Multiple Indices ##
+           indecesOK=true
+           indexList="$(echo "$userInput" | sed 's/ //g' | sed 's/,/ /g')"
+           for index in $indexList
+           do
+              if [ "$index" -eq 0 ] || [ "$index" -gt "$1" ]
+              then indecesOK=false ; break ; fi
+           done
+           "$indecesOK" && fileIndex="$indexList" && multiIndex=true && break
+       fi
+
+       printf "${REDct}INVALID selection.${NOct}\n"
+   done
+}
+
+_GetFileSelection_()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
+
+   if [ $# -lt 2 ] || [ "$2" != "-ALLOK" ]
+   then allIndex="" ; else allIndex="$2" ; fi
+
+   theFilePath=""  fileTemp=""
+   fileCount=0  fileIndex=0  multiIndex=false
+   printf "\n${1}\n\n"
+
+   while read -r FILE
+   do
+       fileCount=$((fileCount+1))
+       fileVar="file_${fileCount}_Path"
+       eval file_${fileCount}_Path="$FILE"
+       printf "${GRNct}%3d${NOct}. " "$fileCount"
+       eval echo "\$${fileVar}"
+   done <<EOT
+$(ls -lt $theSavedFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+EOT
+   echo
+   _GetFileSelectionIndex_ "$fileCount" "$allIndex"
+
+   if [ "$fileIndex" = "ALL" ] || [ "$fileIndex" = "NONE" ]
+   then theFilePath="$fileIndex" ; return 0 ; fi
+
+   if [ "$allIndex" = "-ALLOK" ] && "$multiIndex"
+   then
+       for index in $fileIndex
+       do
+           fileVar="file_${index}_Path"
+           eval fileTemp="\$${fileVar}"
+           if [ -z "$theFilePath" ]
+           then theFilePath="$fileTemp"
+           else theFilePath="$theFilePath $fileTemp"
+           fi
+       done
+   else
+       fileVar="file_${fileIndex}_Path"
+       eval theFilePath="\$${fileVar}"
+   fi
+   return 0
+}
+
+RestoreCustomUserIcons()
+{
+   theFilePath=""  theFileCount=0
+
+   if ! CheckForSavedIconFiles
+   then
+       UpdateCustomUserIconsConfig RESTD NONE UpdateStatus
+       Print_Output true "**ERROR**: Archive file(s) [$theSavedFilesMatch] NOT FOUND." "$ERR"
+       return 1
+   fi
+   UpdateCustomUserIconsConfig RESTD WAIT
+
+   if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
+   then  ## Restore from the MOST recent archive ##
+       while read -r FILE
+       do theFilePath="$FILE" ; break
+       done <<EOT
+$(ls -lt $theSavedFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+EOT
+   else
+       _GetFileSelection_ "Select an archive file to restore the icon files from:"
+   fi
+
+   if [ "$theFilePath" = "NONE" ] || [ ! -f "$theFilePath" ]
+   then
+       UpdateCustomUserIconsConfig RESTD NONE UpdateStatus
+       return 1
+   fi
+
+   printf "Restoring icon files from:\n[${GRNct}$theFilePath${NOct}]\n"
+   tar -xzf "$theFilePath" -C "$theJFFSdir"
+   if [ $? -gt 1 ]
+   then
+       retCode=1
+       UpdateCustomUserIconsConfig RESTD NONE UpdateStatus
+       Print_Output true "**ERROR**: Could NOT restore icon files." "$ERR"
+   else
+       retCode=0
+       _NVRAM_IconsRestoreKeyValue_
+       UpdateCustomUserIconsConfig RESTD "$theFilePath" UpdateStatus
+       printf "All icon files were restored ${GRNct}successfully${NOct}.\n\n"
+       ls -AlF "$userIconsDIRpath"
+   fi
+   _WaitForEnterKey_
+   return $retCode
+}
+
+ListContentsOfSavedIconsFile()
+{
+   theFilePath=""  theFileCount=0
+
+   if ! CheckForSavedIconFiles
+   then
+       Print_Output true "**ERROR**: Archive file(s) [$theSavedFilesMatch] NOT FOUND." "$ERR"
+       return 1
+   fi
+   _GetFileSelection_ "Select an archive file to list contents from:"
+
+   if [ "$theFilePath" = "NONE" ] || [ ! -f "$theFilePath" ]
+   then return 1 ; fi
+
+   printf "Listing archive contents from:\n[${GRNct}${theFilePath}${NOct}]\n\n"
+   tar -tzf "$theFilePath" -C "$theJFFSdir"
+   if [ $? -eq 0 ]
+   then
+       retCode=0
+       printf "\nContents were listed ${GRNct}successfully${NOct}.\n"
+   else
+       retCode=1
+       printf "\n${REDct}**ERROR**:${NOct} Could NOT list contents.\n"
+   fi
+   _WaitForEnterKey_
+   return $retCode
+}
+
+DeleteSavedIconsFile()
+{
+   theFilePath=""  fileIndex=0  multiIndex=false
+
+   if ! CheckForSavedIconFiles
+   then
+       Print_Output true "**ERROR**: Archive file(s) [$theSavedFilesMatch] NOT FOUND." "$ERR"
+       return 1
+   fi
+   _GetFileSelection_ "Select an archive file to delete:" -ALLOK
+
+   if [ "$theFilePath" = "NONE" ] ; then return 1 ; fi
+   if [ "$theFilePath" != "ALL" ] && ! "$multiIndex" && [ ! -f "$theFilePath" ]
+   then return 1 ; fi
+
+   if [ "$theFilePath" != "ALL" ]
+   then fileToDelete="$theFilePath"
+   else fileToDelete="$theSavedFilesMatch"
+   fi
+   if ! "$multiIndex"
+   then theFileList="$fileToDelete"
+   else theFileList="$(echo "$fileToDelete" | sed 's/ /\n/g')"
+   fi
+
+   printf "Deleting archive(s):\n${GRNct}${theFileList}${NOct}\n"
+   if ! _WaitForConfirmation_ "Please confirm deletion"
+   then
+       printf "File(s) ${REDct}NOT${NOct} deleted.\n"
+       _WaitForEnterKey_
+       return 1
+   fi
+
+   rm -f $fileToDelete
+   if [ -z "$(ls $fileToDelete 2>/dev/null)" ]
+   then
+       retCode=0
+       printf "File deletion completed ${GRNct}successfully${NOct}.\n"
+   else
+       retCode=1
+       printf "\n${REDct}**ERROR**:${NOct} Could NOT delete file(s).\n"
+   fi
+   _WaitForEnterKey_
+   return $retCode
+}
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-03] ##
+##-------------------------------------##
+SetCustomUserIconsSavedDirectory()
+{
+   newSavedDirPath="DEFAULT"
+   echo
+   while true
+   do
+       printf "Enter the directory path where the archives subdirectory will be stored.\n"
+       printf "[DEFAULT: ${GRNct}${theUserIconsSavedDir%/*}${NOct}][${GRNct}e${NOct}=Exit]?  "
+       read -r userInput
+
+       if [ -z "$userInput" ] || \
+          echo "$userInput" | grep -qE "^(e|exit|Exit)$"
+       then newSavedDirPath="DEFAULT" ; break ; fi
+
+       if echo "$userInput" | grep -q '/$'
+       then userInput="${userInput%/*}" ; fi
+
+       if echo "$userInput" | grep -q '//'     || \
+          echo "$userInput" | grep -q '/$'      || \
+          ! echo "$userInput" | grep -q '^/'     || \
+          [ "$(expr length "$userInput")" -lt 4 ] || \
+          [ "$(echo "$userInput" | awk -F '/' '{print NF-1}')" -lt 2 ]
+       then
+           printf "${REDct}INVALID input.${NOct}\n"
+           continue
+       fi
+
+       if [ -d "$userInput" ]
+       then newSavedDirPath="$userInput" ; break ; fi
+
+       rootDir="${userInput%/*}"
+       if [ ! -d "$rootDir" ]
+       then
+           printf "${REDct}**ERROR**:${NOct} Root directory path [$rootDir] does NOT exist.\n"
+           printf "${REDct}INVALID input.${NOct}\n"
+           continue
+       fi
+
+       printf "The directory path '${REDct}${userInput}${NOct}' does NOT exist.\n"
+       if ! _WaitForConfirmation_ "Do you want to create it now"
+       then
+           printf "Directory was ${REDct}NOT${NOct} created.\n\n"
+       else
+           mkdir -m 755 "$userInput" 2>/dev/null
+           if [ -d "$userInput" ]
+           then newSavedDirPath="$userInput" ; break
+           else printf "\n${REDct}**ERROR**: Could NOT create directory [$userInput]${NOct}.\n\n"
+           fi
+       fi
+   done
+
+   if [ "$newSavedDirPath" != "DEFAULT" ] && [ -d "$newSavedDirPath" ]
+   then
+       if  [ "${newSavedDirPath##*/}" != "$userIconsSavedDIRname" ]
+       then newSavedDirPath="${newSavedDirPath}/$userIconsSavedDIRname" ; fi
+       mkdir -m 755 "$newSavedDirPath" 2>/dev/null
+       if [ ! -d "$newSavedDirPath" ]
+       then
+           printf "\n${REDct}**ERROR**: Could NOT create directory [$newSavedDirPath]${NOct}.\n"
+           _WaitForEnterKey_ ; return 1
+       fi
+       if CheckForSavedIconFiles false
+       then mv -f $theSavedFilesMatch "$newSavedDirPath" ; fi
+       UpdateCustomUserIconsConfig SAVED_DIR "$newSavedDirPath"
+       CheckForSavedIconFiles true
+   fi
+   return 0
+}
+
+ShowIconsMenuOptions()
+{
+   SEPstr="--------------------------------------------------------------------"
+   printf "\n${SEPstr}\n"
+   CheckForCustomIconFiles ; CheckForSavedIconFiles
+
+   if ! "$iconsFound" && ! "$archivesFound"
+   then
+       printf "\nNo custom user icon files and no previously saved archives were found.\n"
+       printf "${REDct}Exiting to main menu...${NOct}\n"
+       _WaitForEnterKey_
+       printf "\n${SEPstr}\n"
+       return 1
+   fi
+
+   printf "\n ${YLWct}${ArchivDirOpt}${NOct}.  Directory path where the archives of icon files are stored."
+   printf "\n      [Current Path: ${GRNct}${theUserIconsSavedDir}${NOct}]\n"
+
+   if "$iconsFound" && [ -d "$theUserIconsSavedDir" ]
+   then
+       printf "\n ${YLWct}${SaveIconsOpt}${NOct}.  Save the icon files found in the ${GRNct}${userIconsDIRpath}${NOct} directory.\n"
+   fi
+
+   if "$archivesFound"
+   then
+       printf "\n ${YLWct}${RestIconsOpt}${NOct}.  Restore the icon files into the ${GRNct}${userIconsDIRpath}${NOct} directory.\n"
+       printf "\n ${YLWct}${DeltIconsOpt}${NOct}.  Delete a previously saved archive of icon files.\n"
+       printf "\n ${YLWct}${ListIconsOpt}${NOct}.  List contents of a previously saved archive of icon files.\n"
+   fi
+
+   printf "\n  ${YLWct}e${NOct}.  Exit to main menu.\n"
+   printf "\n${SEPstr}\n"
+   return 0
+}
+
+IconsMenuSelectionHandler()
+{
+   exitMenu=false
+
+   until ! ShowIconsMenuOptions
+   do
+      while true
+      do
+          printf "Choose an option:    " ; read -r userOption
+          if [ -z "$userOption" ] ; then echo ; continue ; fi
+
+          if echo "$userOption" | grep -qE "^(e|exit|Exit)$"
+          then exitMenu=true ; break ; fi
+
+          if [ "$userOption" = "$ArchivDirOpt" ]
+          then SetCustomUserIconsSavedDirectory ; break ; fi
+
+          if [ "$userOption" = "$SaveIconsOpt" ] && \
+             "$iconsFound" && [ -d "$theUserIconsSavedDir" ]
+          then SaveCustomUserIcons ; break ; fi
+
+          if [ "$userOption" = "$RestIconsOpt" ] && "$archivesFound"
+          then RestoreCustomUserIcons ; break ; fi
+
+          if [ "$userOption" = "$DeltIconsOpt" ] && "$archivesFound"
+          then DeleteSavedIconsFile ; break ; fi
+
+          if [ "$userOption" = "$ListIconsOpt" ] && "$archivesFound"
+          then ListContentsOfSavedIconsFile ; break ; fi
+
+          printf "${REDct}INVALID option.${NOct}\n"
+      done
+      $exitMenu && break
+   done
+}
+
+Menu_CustomUserIconsOps()
+{
+   if GetUserIconsSavedVars
+   then
+       waitToConfirm=true
+       CheckForMaxIconsSavedFiles
+       IconsMenuSelectionHandler
+       CheckForMaxIconsSavedFiles
+   fi 
+   Clear_Lock
+}
+
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-02] ##
+##-------------------------------------##
+CheckUserIconFiles()
+{
+   GetUserIconsSavedVars
+   CheckForCustomIconFiles
+   CheckForSavedIconFiles true
+}
+
+SaveUserIconFiles()
+{
+   waitToConfirm=false
+   ClearCustomUserIconsStatus
+   GetUserIconsSavedVars
+   SaveCustomUserIcons
+   CheckForSavedIconFiles
+}
+
+RestoreUserIconFiles()
+{
+   waitToConfirm=false
+   ClearCustomUserIconsStatus
+   GetUserIconsSavedVars
+   RestoreCustomUserIcons "$1"
+   CheckForCustomIconFiles
 }
 
 ##----------------------------------------##
@@ -867,8 +1661,18 @@ ScriptHeader(){
 	printf "\\n"
 }
 
-MainMenu(){
+##----------------------------------------##
+## Modified by Martinski W. [2023-Apr-02] ##
+##----------------------------------------##
+MainMenu()
+{
 	printf "1.    Process %s\\n\\n" "$SCRIPT_CONF"
+
+	if CheckForCustomIconFiles || CheckForSavedIconFiles
+	then
+		printf "2.    Save/Restore custom user icons found in the ${GRNct}${userIconsDIRpath}${NOct} directory.\n\n"
+	fi
+
 	showexport="true"
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
 		showexport="false"
@@ -903,13 +1707,32 @@ MainMenu(){
 				PressEnter
 				break
 			;;
-			x)
-				printf "\\n"
-				if Check_Lock menu; then
-					Export_FW_DHCP_JFFS
+			2)
+				if "$iconsFound" || "$archivesFound"
+				then
+					printf "\n"
+					if Check_Lock menu; then
+						Menu_CustomUserIconsOps
+					else
+						PressEnter
+					fi
+					break
+				else
+					printf "\nPlease choose a valid option\n\n"
 				fi
-				PressEnter
-				break
+			;;
+			x)
+				if "$showexport"
+				then
+					printf "\\n"
+					if Check_Lock menu; then
+						Export_FW_DHCP_JFFS
+					fi
+					PressEnter
+					break
+				else
+					printf "\nPlease choose a valid option\n\n"
+				fi
 			;;
 			u)
 				printf "\\n"
@@ -1122,6 +1945,12 @@ Check_Requirements(){
 	fi
 }
 
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-03] ##
+##-------------------------------------##
+# Catch unexpected exit to release lock #
+trap 'Clear_Lock; exit 10' EXIT HUP INT TERM
+
 if [ $# -eq 0 ] || [ -z "$1" ]; then
 	Create_Dirs
 	Set_Version_Custom_Settings local
@@ -1161,6 +1990,18 @@ case "$1" in
 			    "${SCRIPT_NAME}doupdate")    Update_Version force unattended ;;
 			esac
 		fi
+		exit 0
+	;;
+	##-------------------------------------##
+	## Added by Martinski W. [2023-Apr-03] ##
+	##-------------------------------------##
+	saveicons)
+		SaveUserIconFiles
+		exit 0
+	;;
+	restoreicons)
+		option="$([ $# -gt 1 ] && [ "$2" = "true" ] && echo "$2" || echo false)"
+		RestoreUserIconFiles "$option"
 		exit 0
 	;;
 	update)

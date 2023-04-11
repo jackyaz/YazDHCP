@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Apr-03].
+# Last Modified: Martinski W. [2023-Apr-09].
 #---------------------------------------------------------
 
 #############################################
@@ -1056,9 +1056,9 @@ SaveCustomUserIcons()
    return $retCode
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-02] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Apr-09] ##
+##----------------------------------------------##
 _GetFileSelectionIndex_()
 {
    if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
@@ -1068,12 +1068,12 @@ _GetFileSelectionIndex_()
    else selStr="${GRNct}1${NOct}-${GRNct}${1}${NOct} | ${GRNct}e${NOct}=Exit"
    fi
 
-   if [ $# -lt 2 ] || [ "$2" != "-ALLOK" ]
+   if [ $# -lt 2 ] || [ "$2" != "-MULTIOK" ]
    then
-       AllOK=false
+       multiIndexListOK=false
        promptStr="Enter selection [${selStr}]?"
    else
-       AllOK=true
+       multiIndexListOK=true
        promptStr="Enter selection [${selStr} | ${GRNct}all${NOct}]?"
    fi
    fileIndex=0  multiIndex=false
@@ -1087,15 +1087,37 @@ _GetFileSelectionIndex_()
        if echo "$userInput" | grep -qE "^(e|exit|Exit)$"
        then fileIndex="NONE" ; break ; fi
 
-       if $AllOK && echo "$userInput" | grep -qE "^(all|All)$"
+       if "$multiIndexListOK" && \
+          echo "$userInput" | grep -qE "^(all|All)$"
        then fileIndex="ALL" ; break ; fi
 
        if echo "$userInput" | grep -qE "^${numRegEx}$" && \
           [ "$userInput" -gt 0 ] && [ "$userInput" -le "$1" ]
        then fileIndex="$userInput" ; break ; fi
 
-       if $AllOK && echo "$userInput" | grep -qE "^${numRegEx}(,[ ]*${numRegEx}[ ]*)+$"
-       then ## Multiple Indices ##
+       if "$multiIndexListOK" && \
+          echo "$userInput" | grep -qE "^${numRegEx}\-${numRegEx}[ ]*$"
+       then ## Index Range ##
+           index1st="$(echo "$userInput" | awk -F '-' '{print $1}')"
+           indexMax="$(echo "$userInput" | awk -F '-' '{print $2}')"
+           if [ "$index1st" -lt "$indexMax" ]  && \
+              [ "$index1st" -gt 0 ] && [ "$index1st" -le "$1" ] && \
+              [ "$indexMax" -gt 0 ] && [ "$indexMax" -le "$1" ]
+           then
+               indexNum="$index1st"
+               indexList="$indexNum"
+               while [ "$indexNum" -lt "$indexMax" ]
+               do
+                   indexNum="$((indexNum+1))"
+                   indexList="${indexList},${indexNum}"
+               done
+               userInput="$indexList"
+           fi
+       fi
+
+       if "$multiIndexListOK" && \
+          echo "$userInput" | grep -qE "^${numRegEx}(,[ ]*${numRegEx}[ ]*)+$"
+       then ## Index List ##
            indecesOK=true
            indexList="$(echo "$userInput" | sed 's/ //g' | sed 's/,/ /g')"
            for index in $indexList
@@ -1114,8 +1136,8 @@ _GetFileSelection_()
 {
    if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
 
-   if [ $# -lt 2 ] || [ "$2" != "-ALLOK" ]
-   then allIndex="" ; else allIndex="$2" ; fi
+   if [ $# -lt 2 ] || [ "$2" != "-MULTIOK" ]
+   then indexType="" ; else indexType="$2" ; fi
 
    theFilePath=""  fileTemp=""
    fileCount=0  fileIndex=0  multiIndex=false
@@ -1132,12 +1154,12 @@ _GetFileSelection_()
 $(ls -lt $theSavedFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
 EOT
    echo
-   _GetFileSelectionIndex_ "$fileCount" "$allIndex"
+   _GetFileSelectionIndex_ "$fileCount" "$indexType"
 
    if [ "$fileIndex" = "ALL" ] || [ "$fileIndex" = "NONE" ]
    then theFilePath="$fileIndex" ; return 0 ; fi
 
-   if [ "$allIndex" = "-ALLOK" ] && "$multiIndex"
+   if [ "$indexType" = "-MULTIOK" ] && "$multiIndex"
    then
        for index in $fileIndex
        do
@@ -1185,6 +1207,7 @@ EOT
    fi
 
    printf "Restoring icon files from:\n[${GRNct}$theFilePath${NOct}]\n"
+
    tar -xzf "$theFilePath" -C "$theJFFSdir"
    if [ $? -gt 1 ]
    then
@@ -1230,6 +1253,9 @@ ListContentsOfSavedIconsFile()
    return $retCode
 }
 
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Apr-09] ##
+##----------------------------------------------##
 DeleteSavedIconsFile()
 {
    theFilePath=""  fileIndex=0  multiIndex=false
@@ -1239,22 +1265,26 @@ DeleteSavedIconsFile()
        Print_Output true "**ERROR**: Archive file(s) [$theSavedFilesMatch] NOT FOUND." "$ERR"
        return 1
    fi
-   _GetFileSelection_ "Select an archive file to delete:" -ALLOK
+   _GetFileSelection_ "Select an archive file to delete:" -MULTIOK
 
    if [ "$theFilePath" = "NONE" ] ; then return 1 ; fi
    if [ "$theFilePath" != "ALL" ] && ! "$multiIndex" && [ ! -f "$theFilePath" ]
    then return 1 ; fi
 
    if [ "$theFilePath" != "ALL" ]
-   then fileToDelete="$theFilePath"
-   else fileToDelete="$theSavedFilesMatch"
+   then
+       fileToDelete="$theFilePath"
+       delMsg="Deleting archive(s):"
+   else
+       fileToDelete="$theSavedFilesMatch"
+       delMsg="Deleting ${REDct}ALL${NOct} archive(s):"
    fi
    if ! "$multiIndex"
    then theFileList="$fileToDelete"
    else theFileList="$(echo "$fileToDelete" | sed 's/ /\n/g')"
    fi
 
-   printf "Deleting archive(s):\n${GRNct}${theFileList}${NOct}\n"
+   printf "${delMsg}\n${GRNct}${theFileList}${NOct}\n"
    if ! _WaitForConfirmation_ "Please confirm deletion"
    then
        printf "File(s) ${REDct}NOT${NOct} deleted.\n"

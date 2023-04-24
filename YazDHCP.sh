@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Apr-22].
+# Last Modified: Martinski W. [2023-Apr-23].
 #---------------------------------------------------------
 
 #############################################
@@ -989,7 +989,7 @@ _NVRAM_IconsRestoreKeyValue_()
 CheckForCustomIconFiles()
 {
    if [ -d "$userIconsDIRpath" ] && \
-      [ "$(ls -1 "$userIconsDIRpath" 2>/dev/null | wc -l)" -gt 0 ]
+      [ "$(ls -1 ${userIconsDIRpath}/*.log 2>/dev/null | wc -l)" -gt 0 ]
    then
        iconsFound=true
        UpdateCustomUserIconsConfig FOUND TRUE

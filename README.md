@@ -2,8 +2,8 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/1f193c7b92a34b60bc1ef9a647f04908)](https://www.codacy.com/gh/jackyaz/YazDHCP/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jackyaz/YazDHCP&amp;utm_campaign=Badge_Grade)
 ![Shellcheck](https://github.com/jackyaz/YazDHCP/actions/workflows/shellcheck.yml/badge.svg)
 
-## v1.0.5
-### Updated on 2023-01-31
+## v1.0.6
+### Updated on 2023-04-23
 ## About
 Feature expansion of DHCP assignments using AsusWRT-Merlin's [Addons API](https://github.com/RMerl/asuswrt-merlin.ng/wiki/Addons-API) to read and write DHCP assignments, increasing the limit on the number of reservations.
 
@@ -53,6 +53,9 @@ dhcp-optsfile contains a list of MAC address to DNS server address bindings, to 
 
 ## "DHCP Lease" time values
 The "DHCP Lease" input field has been enhanced to accept a maximum value of 7776000 seconds (90 days). Values can be entered in seconds (e.g. 86400s), minutes (e.g. 1440m), hours (e.g. 24h), days (e.g. 2d), or weeks (e.g. 2w). A single digit ZERO '0' or an upper-case letter 'I' indicates that an "infinite" lease time value will be applied.
+
+## "Back up & Restore" custom user icons
+You can save a backup of the custom user icons found in the "/jffs/usericons" directory, and you can later select one of the backup files to restore the icons files as needed. The command line interface allows you to change the directory path where the backup subdirectory is located, and you have option to delete backup files, or list the contents of a backup file. The default maximum number of backup files to keep is 20, but you can change this maximum setting (between min=5 to max=50).
 
 ## Help
 Please post about any issues and problems here: [YazDHCP on SNBForums](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=31)

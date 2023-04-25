@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Apr-24].
+# Last Modified: Martinski W. [2023-Apr-25].
 #---------------------------------------------------------
 
 #############################################
@@ -1175,6 +1175,9 @@ _GetFileSelectionIndex_()
    done
 }
 
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Apr-25] ##
+##----------------------------------------------##
 _GetFileSelection_()
 {
    if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
@@ -1182,15 +1185,15 @@ _GetFileSelection_()
    if [ $# -lt 2 ] || [ "$2" != "-MULTIOK" ]
    then indexType="" ; else indexType="$2" ; fi
 
-   theFilePath=""  fileTemp=""
+   theFilePath=""  theFileName=""  fileTemp=""
    fileCount=0  fileIndex=0  multiIndex=false
-   printf "\n${1}\n\n"
+   printf "\n${1}\n[Directory: ${GRNct}${theUserIconsBackupDir}${NOct}]\n\n"
 
-   while read -r FILE
+   while read -r backupFilePath
    do
        fileCount=$((fileCount+1))
-       fileVar="file_${fileCount}_Path"
-       eval file_${fileCount}_Path="$FILE"
+       fileVar="file_${fileCount}_Name"
+       eval file_${fileCount}_Name="${backupFilePath##*/}"
        printf "${GRNct}%3d${NOct}. " "$fileCount"
        eval echo "\$${fileVar}"
    done <<EOT
@@ -1206,16 +1209,17 @@ EOT
    then
        for index in $fileIndex
        do
-           fileVar="file_${index}_Path"
+           fileVar="file_${index}_Name"
            eval fileTemp="\$${fileVar}"
            if [ -z "$theFilePath" ]
-           then theFilePath="$fileTemp"
-           else theFilePath="$theFilePath $fileTemp"
+           then theFilePath="${theUserIconsBackupDir}/$fileTemp"
+           else theFilePath="$theFilePath ${theUserIconsBackupDir}/$fileTemp"
            fi
        done
    else
-       fileVar="file_${fileIndex}_Path"
-       eval theFilePath="\$${fileVar}"
+       fileVar="file_${fileIndex}_Name"
+       eval theFileName="\$${fileVar}"
+       theFilePath="${theUserIconsBackupDir}/$theFileName"
    fi
    return 0
 }
@@ -1237,10 +1241,10 @@ GetSavedBackupFilesList()
    echo "$userIconsBKPListHeader $theUserIconsBackupDir" >> "$SCRIPT_USER_ICONS_BKPLST"
 
    fileCount=0  fileName=""
-   while read -r theFilePath
+   while read -r backupFilePath
    do
        fileCount=$((fileCount+1))
-       fileName="${theFilePath##*/}"
+       fileName="${backupFilePath##*/}"
        printf "%3d. ${fileName}\n" "$fileCount" >> "$SCRIPT_USER_ICONS_BKPLST"
    done <<EOT
 $(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
@@ -1418,7 +1422,7 @@ DeleteSavedIconsFile()
    if [ "$theFilePath" != "ALL" ]
    then
        fileToDelete="$theFilePath"
-       delMsg="Deleting backup(s):"
+       delMsg="Deleting backup file(s):"
    else
        fileToDelete="$theBackupFilesMatch"
        delMsg="Deleting ${REDct}ALL${NOct} backup(s):"

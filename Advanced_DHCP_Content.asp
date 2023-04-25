@@ -57,7 +57,7 @@ thead.collapsible-jquery {
 <script>
 
 /**---------------------------------------------**/
-/** Last Modified by Martinski W. [2023-Apr-23] **/
+/** Last Modified by Martinski W. [2023-Apr-24] **/
 /**---------------------------------------------**/
 
 const actionScriptPrefix="start_YazDHCP";
@@ -294,9 +294,9 @@ const AlertMsgBox=
    }
 };
 
-/**-------------------------------------**/
-/** Added by Martinski W. [2023-Apr-22] **/
-/**-------------------------------------**/
+/**----------------------------------------------**/
+/** Added/modified by Martinski W. [2023-Apr-24] **/
+/**----------------------------------------------**/
 const customUserIcons=
 {
    backupOp:  false,
@@ -324,16 +324,16 @@ const customUserIcons=
 
    backupErrorMsg: 'ERROR: Custom user icon files were not saved.',
    backupEnabledMsg: function()
-   { return (`Save icons found in the "${this.theUserIconsOrigDir}" directory.`); },
+   { return (`Back up user icons found in the directory:\n"${this.theUserIconsOrigDir}"\n`); },
    backupDisabledMsg: function()
-   { return (`No icons files found in the "${this.theUserIconsOrigDir}" directory.`); },
+   { return (`No user icons found in the directory:\n"${this.theUserIconsOrigDir}"\n`); },
 
    restoreErrorMsg1: 'ERROR: Custom user icon backup list was not found.',
    restoreErrorMsg2: 'ERROR: Custom user icon files were not restored.',
    restoreEnabledMsg: function()
-   { return (`Restore icons from a backup file found in the "${this.theUserIconsSavedDir}" directory.`); },
+   { return (`Restore user icons from a backup file found in the directory:\n"${this.theUserIconsSavedDir}"\n`); },
    restoreDisabledMsg: function()
-   { return (`No backup files found in the "${this.theUserIconsSavedDir}" directory.`); }
+   { return (`No backup files found in the directory:\n"${this.theUserIconsSavedDir}"\n`); }
 };
 
 /**-------------------------------------**/

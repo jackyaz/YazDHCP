@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Apr-23].
+# Last Modified: Martinski W. [2023-Apr-24].
 #---------------------------------------------------------
 
 #############################################
@@ -1220,11 +1220,12 @@ EOT
    return 0
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-15] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Apr-24] ##
+##----------------------------------------------##
 GetSavedBackupFilesList()
 {
+   GetUserIconsSavedVars
    rm -f "$SCRIPT_USER_ICONS_BKPLST"
    if ! CheckForSavedIconFiles
    then
@@ -1247,8 +1248,12 @@ EOT
    return 0
 }
 
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-Apr-24] ##
+##----------------------------------------------##
 RestoreUserIconFilesReq()
 {
+   GetUserIconsSavedVars
    if ! CheckForSavedIconFiles || [ ! -f "$SCRIPT_USER_ICONS_BKPLST" ]
    then
        UpdateCustomUserIconsConfig RESTD NONE STATUSupdate
@@ -1313,6 +1318,9 @@ RestoreUserIconFilesReq()
    return $retCode
 }
 
+##-------------------------------------##
+## Added by Martinski W. [2023-Apr-15] ##
+##-------------------------------------##
 RestoreCustomUserIcons()
 {
    theFilePath=""  theFileCount=0

@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Apr-25].
+# Last Modified: Martinski W. [2023-May-29].
 #---------------------------------------------------------
 
 #############################################
@@ -46,7 +46,7 @@ readonly PASS="\\e[32m"
 ### End of router environment variables ###
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Jan-28] ##
+## Added/modified by Martinski W. [2023-May-28] ##
 ##----------------------------------------------##
 # DHCP Lease Time: Min & Max Values in seconds.
 # 2 minutes=120 to 90 days=7776000 (inclusive).
@@ -59,6 +59,7 @@ readonly MaxDHCPLeaseTime=7776000
 readonly InfiniteLeaseTimeTag="I"
 readonly InfiniteLeaseTimeSecs=94348800
 readonly YazDHCP_LEASEtag="DHCP_LEASE"
+readonly DHCP_LEASE_KEYN="dhcp_lease"
 readonly DHCP_LEASE_FILE="DHCP_Lease"
 readonly SCRIPT_DHCP_LEASE_CONF="${SCRIPT_DIR}/$DHCP_LEASE_FILE"
 
@@ -240,31 +241,30 @@ DHCP_LeaseValueToSeconds()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Mar-14] ##
+## Added/Modified by Martinski W. [2023-May-28] ##
 ##----------------------------------------------##
 Check_DHCP_LeaseTime()
 {
-   NVRAM_LeaseKey="dhcp_lease"
-   NVRAM_LeaseTime="$(nvram get $NVRAM_LeaseKey)"
+   NVRAM_LeaseTime="$(nvram get $DHCP_LEASE_KEYN)"
 
    if [ ! -f "$SCRIPT_DHCP_LEASE_CONF" ]
    then
       echo "## DO *NOT* EDIT THIS FILE. IT'S DYNAMICALLY UPDATED ##" > "$SCRIPT_DHCP_LEASE_CONF"
       echo "DHCP_LEASE=$NVRAM_LeaseTime" >> "$SCRIPT_DHCP_LEASE_CONF"
-      return 0
+      return 1
    fi
 
    if ! grep -q "^DHCP_LEASE=" "$SCRIPT_DHCP_LEASE_CONF"
    then
       echo "DHCP_LEASE=$NVRAM_LeaseTime" >> "$SCRIPT_DHCP_LEASE_CONF"
-      return 0
+      return 1
    fi
 
    LeaseValue="$(grep "^DHCP_LEASE=" "$SCRIPT_DHCP_LEASE_CONF" | awk -F '=' '{print $2}')"
    if [ -z "$LeaseValue" ]
    then
       sed -i "s/DHCP_LEASE=.*/DHCP_LEASE=$NVRAM_LeaseTime/" "$SCRIPT_DHCP_LEASE_CONF"
-      return 0
+      return 1
    fi
 
    LeaseTime="$(DHCP_LeaseValueToSeconds "$LeaseValue")"
@@ -272,8 +272,8 @@ Check_DHCP_LeaseTime()
    if [ "$LeaseTime" = "$InfiniteLeaseTimeSecs" ] && \
       [ "$LeaseTime" != "$NVRAM_LeaseTime" ]
    then
-      nvram set ${NVRAM_LeaseKey}="$LeaseTime"
-      nvram commit
+      nvram set ${DHCP_LEASE_KEYN}="$LeaseTime"
+      DO_NVRAM_COMMIT=true
       RESTART_DNSMASQ=true
       return 0
    fi
@@ -284,9 +284,10 @@ Check_DHCP_LeaseTime()
       [ "$LeaseTime" -eq "$NVRAM_LeaseTime" ]
    then return 1 ; fi
 
-   nvram set ${NVRAM_LeaseKey}="$LeaseTime"
-   nvram commit
+   nvram set ${DHCP_LEASE_KEYN}="$LeaseTime"
+   DO_NVRAM_COMMIT=true
    RESTART_DNSMASQ=true
+   return 0
 }
 
 ##-------------------------------------##
@@ -461,9 +462,10 @@ Check_CustomUserIconsConfig()
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-Mar-14] ##
+## Modified by Martinski W. [2023-May-28] ##
 ##----------------------------------------##
-Conf_FromSettings(){
+Conf_FromSettings()
+{
 	SETTINGSFILE="/jffs/addons/custom_settings.txt"
 	TMPFILE="/tmp/yazdhcp_clients.tmp"
 	if [ -f "$SETTINGSFILE" ]; then
@@ -486,9 +488,12 @@ Conf_FromSettings(){
 			
 			echo "$DHCPCLIENTS" | sed 's/|/:/g;s/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp_clients_parsed.tmp
 			
+			DO_NVRAM_COMMIT=false
 			echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
 			
-			while IFS='' read -r line || [ -n "$line" ]; do
+			while IFS='' read -r line || [ -n "$line" ]
+			do
+				if ! CheckAgainstNVRAMvar "$line" ; then DO_NVRAM_COMMIT=true ; fi
 				if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 					echo "$line" | awk '{ print ""$1","$2","$3","$4""; }' >> "$SCRIPT_CONF"
 				elif [ "$(echo "$line" | wc -w)" -gt 1 ]; then
@@ -518,14 +523,20 @@ Conf_FromSettings(){
 			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
 			
-			RESTART_DNSMASQ=false
+			RESTART_DNSMASQ="$DO_NVRAM_COMMIT"
 			Check_DHCP_LeaseTime
 			Update_Hostnames
 			Update_Staticlist
 			Update_Optionslist
-			if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
+			if "$DO_NVRAM_COMMIT" ; then nvram commit ; fi
 			
 			Print_Output true "Merge of updated DHCP client information from WebUI completed successfully" "$PASS"
+			
+			if "$RESTART_DNSMASQ"
+			then
+				Print_Output true "Restarting dnsmasq for new DHCP settings to take effect." "$PASS"
+				sleep 1 ; service restart_dnsmasq >/dev/null 2>&1
+			fi
 		else
 			Print_Output false "No updated DHCP information from WebUI found, no merge into $SCRIPT_CONF necessary" "$PASS"
 		fi
@@ -589,8 +600,11 @@ Update_Check(){
 	echo "$doupdate,$localver,$serverver"
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-May-28] ##
+##----------------------------------------##
 Update_Version(){
-	if [ -z "$1" ] || [ "$1" = "unattended" ]; then
+	if [ $# -eq 0 ] || [ -z "$1" ] || [ "$1" = "unattended" ]; then
 		updatecheckresult="$(Update_Check)"
 		isupdate="$(echo "$updatecheckresult" | cut -f1 -d',')"
 		localver="$(echo "$updatecheckresult" | cut -f2 -d',')"
@@ -607,7 +621,7 @@ Update_Version(){
 		if [ "$isupdate" != "false" ]; then
 			Update_File Advanced_DHCP_Content.asp
 			
-			Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+			Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated" "$PASS"
 			chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
 			Clear_Lock
 			if [ -z "$1" ]; then
@@ -622,15 +636,15 @@ Update_Version(){
 		fi
 	fi
 	
-	if [ "$1" = "force" ]; then
+	if [ $# -gt 0 ] && [ "$1" = "force" ]; then
 		serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/version/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
 		Print_Output true "Downloading latest version ($serverver) of $SCRIPT_NAME" "$PASS"
 		Update_File Advanced_DHCP_Content.asp
 		Update_File shared-jy.tar.gz
-		Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated"
+		Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated" "$PASS"
 		chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
 		Clear_Lock
-		if [ -z "$2" ]; then
+		if [ $# -eq 1 ] || [ -z "$2" ]; then
 			exec "$0" setversion
 		elif [ "$2" = "unattended" ]; then
 			exec "$0" setversion unattended
@@ -690,12 +704,12 @@ Create_Dirs(){
 	fi
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Jan-28] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/modified by Martinski W. [2023-May-28] ##
+##----------------------------------------------##
 Create_DHCP_LeaseConfig()
 {
-   Check_DHCP_LeaseTime
+   Check_DHCP_LeaseTime && nvram commit
    ln -sf "$SCRIPT_DHCP_LEASE_CONF" "${SCRIPT_WEB_DIR}/${DHCP_LEASE_FILE}.htm" 2>/dev/null
 }
 
@@ -1289,7 +1303,6 @@ RestoreUserIconFilesReq()
            break
        fi
    done < "$SCRIPT_USER_ICONS_BKPLST"
-
    rm -f "$SCRIPT_USER_ICONS_BKPLST"
 
    if [ "$fileIndex" -gt "$fileCount" ]
@@ -1679,13 +1692,84 @@ RestoreUserIconFiles()
    CheckForCustomIconFiles
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-May-28] ##
+##----------------------------------------------##
+CheckAgainstNVRAMvar()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 0 ; fi
+
+   if [ ! -s /jffs/nvram/dhcp_staticlist ]
+   then theKeyVal="$(nvram get dhcp_staticlist)"
+   else theKeyVal="$(cat /jffs/nvram/dhcp_staticlist)"
+   fi
+   if [ -z "$theKeyVal" ] ; then return 0 ; fi
+
+   retCode=0
+   MACx_Addrs="$(echo "$1" | awk -F ' ' '{print $1}')"
+   IPv4_Addrs="$(echo "$1" | awk -F ' ' '{print $2}')"
+   IPv4_RegEx="([0-9]{1,3}\.){3}([0-9]{1,3})"
+   MACx_RegEx="([a-fA-F0-9]{2}\:){5}([a-fA-F0-9]{2})"
+   theRegExp1="<${MACx_Addrs}>${IPv4_RegEx}[>](${IPv4_RegEx})?[>][^<]*"
+   theRegExp2="<${MACx_RegEx}>${IPv4_Addrs}[>](${IPv4_RegEx})?[>][^<]*"
+   keyEntry=""
+
+   if echo "$theKeyVal" | grep -qiE "$theRegExp1"
+   then keyEntry="$(echo "$theKeyVal" | grep -ioE "$theRegExp1")"
+   elif echo "$theKeyVal" | grep -qiE "$theRegExp2"
+   then keyEntry="$(echo "$theKeyVal" | grep -ioE "$theRegExp2")"
+   fi
+   if [ -n "$keyEntry" ]
+   then
+       tempFile="/tmp/yazdhcp_nvramstr.tmp"
+       echo "$theKeyVal" | sed "s/${keyEntry}//g" | sed '/^$/d' > "$tempFile"
+       nvram set dhcp_staticlist="$(cat "$tempFile")"
+       rm -f $tempFile
+       retCode=1
+   fi
+   return $retCode
+}
+
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-May-28] ##
+##----------------------------------------------##
+ValidateNVRAMentry()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
+
+   retCode=0
+   dupInfoMsg=""
+   MACx_Addrs="$(echo "$1" | awk -F '|' '{print $1}')"
+   IPv4_Addrs="$(echo "$1" | awk -F '|' '{print $2}')"
+   theClientx="${MACx_Addrs},${IPv4_Addrs}"
+
+   if grep -qi "^${theClientx}" "$SCRIPT_CONF"
+   then
+       dupInfoMsg="Client entry [$theClientx] is already found"
+   elif grep -qi "^${MACx_Addrs}," "$SCRIPT_CONF"
+   then
+       dupInfoMsg="Client MAC address [$MACx_Addrs] is already found"
+   elif grep -qi ",${IPv4_Addrs}," "$SCRIPT_CONF"
+   then
+       dupInfoMsg="Client IP address [$IPv4_Addrs] is already assigned"
+   fi
+   if [ -n "$dupInfoMsg" ]
+   then
+       Print_Output true "$dupInfoMsg in $SCRIPT_CONF file" "$WARN"
+       Print_Output true "NVRAM entry will be skipped/ignored." "$WARN"
+       retCode=1
+   fi
+   return $retCode
+}
+
 ##----------------------------------------##
-## Modified by Martinski W. [2023-Mar-14] ##
+## Modified by Martinski W. [2023-May-28] ##
 ##----------------------------------------##
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
-Export_FW_DHCP_JFFS(){
-	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from nvram to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
-	printf "%s will backup nvram/jffs DHCP data as part of the export\\n" "$SCRIPT_NAME"
+Export_FW_DHCP_JFFS()
+{
+	printf "\\n\\e[1mDo you want to export DHCP assignments and hostnames from NVRAM to %s DHCP client files? (y/n)\\e[0m\\n" "$SCRIPT_NAME"
+	printf "%s will backup NVRAM/jffs DHCP data as part of the export\\n" "$SCRIPT_NAME"
 	printf "\\n\\e[1mEnter answer (y/n):    \\e[0m"
 	read -r confirm
 	case "$confirm" in
@@ -1693,12 +1777,13 @@ Export_FW_DHCP_JFFS(){
 			:
 		;;
 		*)
+			Clear_Lock
 			return 1
 		;;
 	esac
 	
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
-		Print_Output true "DHCP static assignmnents not exported from nvram, no data found" "$PASS"
+		Print_Output true "DHCP static assignments not exported from NVRAM, no data found" "$PASS"
 		Clear_Lock
 		return 1
 	fi
@@ -1706,12 +1791,12 @@ Export_FW_DHCP_JFFS(){
 	if [ "$(Firmware_Version_Number "$(nvram get buildno)")" -lt "$(Firmware_Version_Number 386.4)" ]; then
 		if [ -f /jffs/nvram/dhcp_hostnames ]; then
 			if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
-				Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
+				Print_Output true "DHCP hostnames not exported from NVRAM, no data found" "$PASS"
 				Clear_Lock
 				return 1
 			fi
 		elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
-			Print_Output true "DHCP hostnames not exported from nvram, no data found" "$PASS"
+			Print_Output true "DHCP hostnames not exported from NVRAM, no data found" "$PASS"
 			Clear_Lock
 			return 1
 		fi
@@ -1776,11 +1861,14 @@ Export_FW_DHCP_JFFS(){
 		else
 			nvram get dhcp_staticlist | sed 's/</\n/g;s/>/|/g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp.tmp
 		fi
-		
-		echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
+
+		if [ ! -f "$SCRIPT_CONF" ] || [ ! -s "$SCRIPT_CONF" ]
+		then echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF" ; fi
 		sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
 		
-		while IFS='' read -r line || [ -n "$line" ]; do
+		while IFS='' read -r line || [ -n "$line" ]
+		do
+			if ! ValidateNVRAMentry "$line" ; then continue ; fi
 			echo "$line" | awk 'FS="|" { print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
 		done < /tmp/yazdhcp_sorted.tmp
 		
@@ -1792,17 +1880,20 @@ Export_FW_DHCP_JFFS(){
 	fi
 	nvram get dhcp_staticlist > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
-	
 	nvram commit
 	
-	Print_Output true "DHCP information successfully exported from nvram" "$PASS"
+	Print_Output true "DHCP information successfully exported from NVRAM" "$PASS"
 	
-	RESTART_DNSMASQ=false
+	RESTART_DNSMASQ=true
 	Update_Hostnames
 	Update_Staticlist
 	Update_Optionslist
-	if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
-	
+
+	if "$RESTART_DNSMASQ"
+	then
+		Print_Output true "Restarting dnsmasq for exported DHCP settings to take effect." "$PASS"
+		service restart_dnsmasq >/dev/null 2>&1
+	fi
 	Clear_Lock
 }
 ##################################################################
@@ -1883,7 +1974,7 @@ ScriptHeader(){
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-Apr-02] ##
+## Modified by Martinski W. [2023-May-28] ##
 ##----------------------------------------##
 MainMenu()
 {
@@ -1898,12 +1989,15 @@ MainMenu()
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
 		showexport="false"
 	fi
-	if [ -f /jffs/nvram/dhcp_hostnames ]; then
-		if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+	if [ "$(Firmware_Version_Number "$(nvram get buildno)")" -lt "$(Firmware_Version_Number 386.4)" ]
+	then
+		if [ -f /jffs/nvram/dhcp_hostnames ]; then
+			if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
+				showexport="false"
+			fi
+		elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
 			showexport="false"
 		fi
-	elif [ "$(nvram get dhcp_hostnames | wc -m)" -le 1 ]; then
-		showexport="false"
 	fi
 	if [ "$showexport" = "true" ]; then
 		printf "x.    Export nvram to %s\\n\\n" "$SCRIPT_NAME"
@@ -2091,6 +2185,9 @@ Menu_ForceUpdate(){
 	Clear_Lock
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-May-28] ##
+##----------------------------------------##
 Menu_Uninstall(){
 	Print_Output true "Removing $SCRIPT_NAME..." "$PASS"
 	Auto_Startup delete 2>/dev/null
@@ -2099,35 +2196,46 @@ Menu_Uninstall(){
 	Shortcut_Script delete
 	umount /www/Advanced_DHCP_Content.asp 2>/dev/null
 	rm -f "$SCRIPT_DIR/Advanced_DHCP_Content.asp"
-	
-	printf "\\n\\e[1mDo you want to restore the original nvram values from before %s was installed? (y/n):    \\e[0m" "$SCRIPT_NAME"
+
+	commitNVRAM=false
+	max7daySecs=604800
+	if [ "$(nvram get $DHCP_LEASE_KEYN)" -gt "$max7daySecs" ]
+	then # Reset NVRAM variable to WebGUI maximum secs #
+		nvram set ${DHCP_LEASE_KEYN}="$max7daySecs"
+		commitNVRAM=true
+	fi
+
+	printf "\\n\\e[1mDo you want to restore the original NVRAM values from before %s was installed? (y/n):    \\e[0m" "$SCRIPT_NAME"
 	read -r confirm
 	case "$confirm" in
 		y|Y)
 			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist" ]; then
 				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist")"
+				commitNVRAM=true
 			fi
 			
 			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames" ]; then
 				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames")"
+				commitNVRAM=true
 			fi
 			
 			if [ -f "$SCRIPT_DIR/.nvram_dhcp_staticlist" ]; then
 				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_dhcp_staticlist")"
+				commitNVRAM=true
 			fi
 			
 			if [ -f "$SCRIPT_DIR/.nvram_dhcp_hostnames" ]; then
 				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_dhcp_hostnames")"
+				commitNVRAM=true
 			fi
-			
-			nvram commit
 		;;
 		*)
 			:
 		;;
 	esac
-	
-	printf "\\n\\e[1mDo you want to delete %s DHCP clients and nvram backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
+	if "$commitNVRAM" ; then nvram commit ; fi
+
+	printf "\\n\\e[1mDo you want to delete %s DHCP clients and NVRAM backup files? (y/n):    \\e[0m" "$SCRIPT_NAME"
 	read -r confirm
 	case "$confirm" in
 		y|Y)
@@ -2142,6 +2250,12 @@ Menu_Uninstall(){
 	rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
 	Clear_Lock
 	Print_Output true "Uninstall completed" "$PASS"
+
+	if "$commitNVRAM"
+	then
+		Print_Output true "Restarting dnsmasq to restore DHCP settings." "$PASS"
+		service restart_dnsmasq >/dev/null 2>&1
+	fi
 }
 
 Check_Requirements(){

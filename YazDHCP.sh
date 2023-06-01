@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-May-29].
+# Last Modified: Martinski W. [2023-May-31].
 #---------------------------------------------------------
 
 #############################################
@@ -462,7 +462,7 @@ Check_CustomUserIconsConfig()
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-May-28] ##
+## Modified by Martinski W. [2023-May-31] ##
 ##----------------------------------------##
 Conf_FromSettings()
 {
@@ -535,7 +535,8 @@ Conf_FromSettings()
 			if "$RESTART_DNSMASQ"
 			then
 				Print_Output true "Restarting dnsmasq for new DHCP settings to take effect." "$PASS"
-				sleep 1 ; service restart_dnsmasq >/dev/null 2>&1
+				## Delay restarting dnsmasq until the one from WebGUI is completed ##
+				(sleep 2 ; service restart_dnsmasq >/dev/null 2>&1) &
 			fi
 		else
 			Print_Output false "No updated DHCP information from WebUI found, no merge into $SCRIPT_CONF necessary" "$PASS"
@@ -1693,7 +1694,7 @@ RestoreUserIconFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-May-28] ##
+## Added/Modified by Martinski W. [2023-May-31] ##
 ##----------------------------------------------##
 CheckAgainstNVRAMvar()
 {
@@ -1710,8 +1711,8 @@ CheckAgainstNVRAMvar()
    IPv4_Addrs="$(echo "$1" | awk -F ' ' '{print $2}')"
    IPv4_RegEx="([0-9]{1,3}\.){3}([0-9]{1,3})"
    MACx_RegEx="([a-fA-F0-9]{2}\:){5}([a-fA-F0-9]{2})"
-   theRegExp1="<${MACx_Addrs}>${IPv4_RegEx}[>](${IPv4_RegEx})?[>][^<]*"
-   theRegExp2="<${MACx_RegEx}>${IPv4_Addrs}[>](${IPv4_RegEx})?[>][^<]*"
+   theRegExp1="<${MACx_Addrs}>${IPv4_RegEx}[^<]*"
+   theRegExp2="<${MACx_RegEx}>${IPv4_Addrs}[^<]*"
    keyEntry=""
 
    if echo "$theKeyVal" | grep -qiE "$theRegExp1"

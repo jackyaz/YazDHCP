@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-May-31].
+# Last Modified: Martinski W. [2023-Jun-02].
 #---------------------------------------------------------
 
 #############################################
@@ -1694,7 +1694,7 @@ RestoreUserIconFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-May-31] ##
+## Added/Modified by Martinski W. [2023-Jun-02] ##
 ##----------------------------------------------##
 CheckAgainstNVRAMvar()
 {
@@ -1711,8 +1711,8 @@ CheckAgainstNVRAMvar()
    IPv4_Addrs="$(echo "$1" | awk -F ' ' '{print $2}')"
    IPv4_RegEx="([0-9]{1,3}\.){3}([0-9]{1,3})"
    MACx_RegEx="([a-fA-F0-9]{2}\:){5}([a-fA-F0-9]{2})"
-   theRegExp1="<${MACx_Addrs}>${IPv4_RegEx}[^<]*"
-   theRegExp2="<${MACx_RegEx}>${IPv4_Addrs}[^<]*"
+   theRegExp1="<${MACx_Addrs}>${IPv4_RegEx}>[^<]*"
+   theRegExp2="<${MACx_RegEx}>${IPv4_Addrs}>[^<]*"
    keyEntry=""
 
    if echo "$theKeyVal" | grep -qiE "$theRegExp1"

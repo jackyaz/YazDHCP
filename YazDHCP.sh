@@ -12,11 +12,12 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Jun-02].
+# Last Modified: Martinski W. [2023-Jun-04].
 #---------------------------------------------------------
 
 #############################################
 # shellcheck disable=SC2155
+# shellcheck disable=SC3043
 # shellcheck disable=SC3045
 #############################################
 
@@ -930,6 +931,39 @@ PressEnter(){
 }
 
 ##-------------------------------------##
+## Added by Martinski W. [2023-Jun-04] ##
+##-------------------------------------##
+_movef_()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   mv -f $1 "$2" ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+_remf_()
+{
+   if [ $# -lt 1 ] || [ -z "$1" ] || [ "$1" = "*" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   rm -f $1 ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+_list2_()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   ls $1 $2 ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+##-------------------------------------##
 ## Added by Martinski W. [2023-Apr-01] ##
 ##-------------------------------------##
 _WaitForEnterKey_()
@@ -1016,9 +1050,12 @@ CheckForCustomIconFiles()
    fi
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
+##----------------------------------------------##
 CheckForSavedIconFiles()
 {
-   theFileCount="$(ls -1 $theBackupFilesMatch 2>/dev/null | wc -l)"
+   theFileCount="$(_list2_ -1 "$theBackupFilesMatch" 2>/dev/null | wc -l)"
    if [ ! -d "$theUserIconsBackupDir" ] || [ "$theFileCount" -eq 0 ]
    then
        backupsFound=false
@@ -1031,10 +1068,10 @@ CheckForSavedIconFiles()
 
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
    then
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do theBackupFile="$FILE" ; break
        done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
        UpdateCustomUserIconsConfig SAVED "$theBackupFile"
        UpdateCustomUserIconsConfig RESTD "$theBackupFile"
@@ -1043,7 +1080,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-22] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 CheckForMaxIconsSavedFiles()
 {
@@ -1062,12 +1099,12 @@ CheckForMaxIconsSavedFiles()
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1" && \
       [ "$theFileCount" -gt "$highWaterMark" ]
    then   ## Remove the OLDEST backup file ##
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do
-           rm -f "$FILE" && theFileCount="$((theFileCount - 1))"
+           _remf_ "$FILE" && theFileCount="$((theFileCount - 1))"
            break
        done <<EOT
-$(ls -ltr $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1tr "$theBackupFilesMatch" 2>/dev/null)
 EOT
        if [ "$theFileCount" -le "$maxUserIconsBackupFiles" ]
        then return 0 ; fi
@@ -1078,13 +1115,13 @@ EOT
    printf "\n\n${YLWct}**WARNING**${NOct}\n"
    printf "The number of backup files [${REDct}${theFileCount}${NOct}] exceeds the maximum [${GRNct}${maxUserIconsBackupFiles}${NOct}].\n"
    printf "It's highly recommended that you either delete old backup files,\n"
-   printf "or move them off the router and save them on a different location.\n"
+   printf "or move them from the current directory to a different location.\n"
    _WaitForEnterKey_
    return 1
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-15] ##
+## Added/Modified by Martinski W. [2023-Jun-03] ##
 ##----------------------------------------------##
 BackupCustomUserIcons()
 {
@@ -1106,6 +1143,7 @@ BackupCustomUserIcons()
        Print_Output true "**ERROR**: Could NOT save icon files." "$ERR"
    else
        retCode=0
+       chmod 664 "$theFilePath"
        UpdateCustomUserIconsConfig SAVED "$theFilePath" STATUSupdate
        printf "All icon files were successfully saved in:\n[${GRNct}${theFilePath}${NOct}]\n"
    fi
@@ -1178,9 +1216,9 @@ _GetFileSelectionIndex_()
        then ## Index List ##
            indecesOK=true
            indexList="$(echo "$userInput" | sed 's/ //g' | sed 's/,/ /g')"
-           for index in $indexList
+           for theIndex in $indexList
            do
-              if [ "$index" -eq 0 ] || [ "$index" -gt "$1" ]
+              if [ "$theIndex" -eq 0 ] || [ "$theIndex" -gt "$1" ]
               then indecesOK=false ; break ; fi
            done
            "$indecesOK" && fileIndex="$indexList" && multiIndex=true && break
@@ -1191,7 +1229,7 @@ _GetFileSelectionIndex_()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-25] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 _GetFileSelection_()
 {
@@ -1204,7 +1242,7 @@ _GetFileSelection_()
    fileCount=0  fileIndex=0  multiIndex=false
    printf "\n${1}\n[Directory: ${GRNct}${theUserIconsBackupDir}${NOct}]\n\n"
 
-   while read -r backupFilePath
+   while IFS="$(printf '\n\t')" read -r backupFilePath
    do
        fileCount=$((fileCount+1))
        fileVar="file_${fileCount}_Name"
@@ -1212,7 +1250,7 @@ _GetFileSelection_()
        printf "${GRNct}%3d${NOct}. " "$fileCount"
        eval echo "\$${fileVar}"
    done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    echo
    _GetFileSelectionIndex_ "$fileCount" "$indexType"
@@ -1228,7 +1266,7 @@ EOT
            eval fileTemp="\$${fileVar}"
            if [ -z "$theFilePath" ]
            then theFilePath="${theUserIconsBackupDir}/$fileTemp"
-           else theFilePath="$theFilePath ${theUserIconsBackupDir}/$fileTemp"
+           else theFilePath="${theFilePath}|${theUserIconsBackupDir}/$fileTemp"
            fi
        done
    else
@@ -1240,7 +1278,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-24] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 GetSavedBackupFilesList()
 {
@@ -1256,13 +1294,13 @@ GetSavedBackupFilesList()
    echo "$userIconsBKPListHeader $theUserIconsBackupDir" >> "$SCRIPT_USER_ICONS_BKPLST"
 
    fileCount=0  fileName=""
-   while read -r backupFilePath
+   while IFS="$(printf '\n\t')" read -r backupFilePath
    do
        fileCount=$((fileCount+1))
        fileName="${backupFilePath##*/}"
        printf "%3d. ${fileName}\n" "$fileCount" >> "$SCRIPT_USER_ICONS_BKPLST"
    done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    return 0
 }
@@ -1336,9 +1374,9 @@ RestoreUserIconFilesReq()
    return $retCode
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-15] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
+##----------------------------------------------##
 RestoreCustomUserIcons()
 {
    theFilePath=""  theFileCount=0
@@ -1353,10 +1391,10 @@ RestoreCustomUserIcons()
 
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
    then  ## Restore from the MOST recent backup file ##
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do theFilePath="$FILE" ; break
        done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    else
        _GetFileSelection_ "Select a backup file to restore the icon files from:"
@@ -1416,7 +1454,7 @@ ListContentsOfSavedIconsFile()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-09] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 DeleteSavedIconsFile()
 {
@@ -1443,7 +1481,9 @@ DeleteSavedIconsFile()
    fi
    if ! "$multiIndex"
    then theFileList="$fileToDelete"
-   else theFileList="$(echo "$fileToDelete" | sed 's/ /\n/g')"
+   else
+       theFileList="$(echo "$fileToDelete" | sed 's/|/\n/g')"
+       fileToDelete="$theFileList"
    fi
 
    printf "${delMsg}\n${GRNct}${theFileList}${NOct}\n"
@@ -1454,8 +1494,14 @@ DeleteSavedIconsFile()
        return 1
    fi
 
-   rm -f $fileToDelete
-   if [ -z "$(ls $fileToDelete 2>/dev/null)" ]
+   fileDelOK=true
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   for thisFile in $fileToDelete
+   do if ! _remf_ "$thisFile" ; then fileDelOK=false ; fi ; done
+   IFS="$prevIFS"
+
+   if "$fileDelOK"
    then
        retCode=0
        printf "File deletion completed ${GRNct}successfully${NOct}.\n"
@@ -1566,7 +1612,10 @@ SetCustomUserIconsBackupDirectory()
            _WaitForEnterKey_ ; return 1
        fi
        if CheckForSavedIconFiles false
-       then mv -f $theBackupFilesMatch "$newBackupDirPath" ; fi
+       then
+           printf "\nMoving backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
+           _movef_ "$theBackupFilesMatch" "$newBackupDirPath"
+       fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"
        CheckForSavedIconFiles true
    fi

@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Jun-04].
+# Last Modified: 2023-Jun-10
 #---------------------------------------------------------
 
 #############################################
@@ -983,6 +983,9 @@ _WaitForConfirmation_()
 _NVRAM_IconsCleanupFiles_()
 { rm -f "$NVRAM_ClientsKeyVARsaved" "$NVRAM_ClientsKeyFLEsaved" ; }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-10] ##
+##----------------------------------------------##
 _NVRAM_IconsSaveKeyValue_()
 {
    NVRAM_SavedOK=false
@@ -996,8 +999,10 @@ _NVRAM_IconsSaveKeyValue_()
    theKeyValue="$(nvram get "$NVRAM_ClientsKeyName")"
    if [ -n "$theKeyValue" ]
    then
+       if ! echo "$theKeyValue" | grep -qE "^<.*"
+       then theKeyValue="<$theKeyValue" ; fi
        echo "$theKeyValue" > "$NVRAM_ClientsKeyVARsaved"
-       if [ $? -eq 0 ] ; then NVRAM_SavedOK=true ; fi
+       NVRAM_SavedOK=true
    fi
 
    "$NVRAM_SavedOK" && return 0
@@ -1014,7 +1019,8 @@ _NVRAM_IconsRestoreKeyValue_()
       [ "$(ls -1 "$NVRAM_Folder" 2>/dev/null | wc -l)" -gt 0 ]
    then
        mv -f "$NVRAM_ClientsKeyFLEsaved" "${NVRAM_Folder}/$NVRAM_ClientsKeyName"
-       if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
+       nvram set ${NVRAM_ClientsKeyName}="$(cat "${NVRAM_Folder}/$NVRAM_ClientsKeyName")"
+       NVRAM_RestoredOK=true
    fi
 
    if [ -f "$NVRAM_ClientsKeyVARsaved" ]
@@ -1023,13 +1029,12 @@ _NVRAM_IconsRestoreKeyValue_()
       if [ "$(nvram get "$NVRAM_ClientsKeyName")" != "$theKeyValueSaved" ]
       then
           nvram set ${NVRAM_ClientsKeyName}="$theKeyValueSaved"
-          if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
-          nvram commit
+          NVRAM_RestoredOK=true
       fi
    fi
-   _NVRAM_IconsCleanupFiles_
 
-   "$NVRAM_RestoredOK" && return 0
+   _NVRAM_IconsCleanupFiles_
+   "$NVRAM_RestoredOK" && nvram commit && return 0
 
    Print_Output true "*WARNING*: NVRAM variable \"${NVRAM_ClientsKeyName}\" was NOT restored." "$WARN"
    return 1
@@ -1743,7 +1748,7 @@ RestoreUserIconFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-02] ##
+## Added/Modified by Martinski W. [2023-Jun-10] ##
 ##----------------------------------------------##
 CheckAgainstNVRAMvar()
 {
@@ -1754,6 +1759,8 @@ CheckAgainstNVRAMvar()
    else theKeyVal="$(cat /jffs/nvram/dhcp_staticlist)"
    fi
    if [ -z "$theKeyVal" ] ; then return 0 ; fi
+   if ! echo "$theKeyVal" | grep -qE "^<.*"
+   then theKeyVal="<$theKeyVal" ; fi
 
    retCode=0
    MACx_Addrs="$(echo "$1" | awk -F ' ' '{print $1}')"
@@ -1813,7 +1820,7 @@ ValidateNVRAMentry()
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-May-28] ##
+## Modified by Martinski W. [2023-Jun-10] ##
 ##----------------------------------------##
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS()
@@ -1928,7 +1935,10 @@ Export_FW_DHCP_JFFS()
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist"
 	fi
-	nvram get dhcp_staticlist > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
+	theKeyVal="$(nvram get dhcp_staticlist)"
+	if ! echo "$theKeyVal" | grep -qE "^<.*"
+	then theKeyVal="<$theKeyVal" ; fi
+	echo "$theKeyVal" > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
 	nvram commit
 	

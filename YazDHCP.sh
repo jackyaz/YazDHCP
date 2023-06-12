@@ -12,11 +12,12 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: Martinski W. [2023-Jun-02].
+# Last Modified: 2023-Jun-10
 #---------------------------------------------------------
 
 #############################################
 # shellcheck disable=SC2155
+# shellcheck disable=SC3043
 # shellcheck disable=SC3045
 #############################################
 
@@ -930,6 +931,39 @@ PressEnter(){
 }
 
 ##-------------------------------------##
+## Added by Martinski W. [2023-Jun-04] ##
+##-------------------------------------##
+_movef_()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   mv -f $1 "$2" ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+_remf_()
+{
+   if [ $# -lt 1 ] || [ -z "$1" ] || [ "$1" = "*" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   rm -f $1 ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+_list2_()
+{
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   ls $1 $2 ; retcode="$?"
+   IFS="$prevIFS"
+   return "$retcode"
+}
+
+##-------------------------------------##
 ## Added by Martinski W. [2023-Apr-01] ##
 ##-------------------------------------##
 _WaitForEnterKey_()
@@ -949,6 +983,9 @@ _WaitForConfirmation_()
 _NVRAM_IconsCleanupFiles_()
 { rm -f "$NVRAM_ClientsKeyVARsaved" "$NVRAM_ClientsKeyFLEsaved" ; }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-10] ##
+##----------------------------------------------##
 _NVRAM_IconsSaveKeyValue_()
 {
    NVRAM_SavedOK=false
@@ -962,8 +999,10 @@ _NVRAM_IconsSaveKeyValue_()
    theKeyValue="$(nvram get "$NVRAM_ClientsKeyName")"
    if [ -n "$theKeyValue" ]
    then
+       if ! echo "$theKeyValue" | grep -qE "^<.*"
+       then theKeyValue="<$theKeyValue" ; fi
        echo "$theKeyValue" > "$NVRAM_ClientsKeyVARsaved"
-       if [ $? -eq 0 ] ; then NVRAM_SavedOK=true ; fi
+       NVRAM_SavedOK=true
    fi
 
    "$NVRAM_SavedOK" && return 0
@@ -980,7 +1019,8 @@ _NVRAM_IconsRestoreKeyValue_()
       [ "$(ls -1 "$NVRAM_Folder" 2>/dev/null | wc -l)" -gt 0 ]
    then
        mv -f "$NVRAM_ClientsKeyFLEsaved" "${NVRAM_Folder}/$NVRAM_ClientsKeyName"
-       if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
+       nvram set ${NVRAM_ClientsKeyName}="$(cat "${NVRAM_Folder}/$NVRAM_ClientsKeyName")"
+       NVRAM_RestoredOK=true
    fi
 
    if [ -f "$NVRAM_ClientsKeyVARsaved" ]
@@ -989,13 +1029,12 @@ _NVRAM_IconsRestoreKeyValue_()
       if [ "$(nvram get "$NVRAM_ClientsKeyName")" != "$theKeyValueSaved" ]
       then
           nvram set ${NVRAM_ClientsKeyName}="$theKeyValueSaved"
-          if [ $? -eq 0 ] ; then NVRAM_RestoredOK=true ; fi
-          nvram commit
+          NVRAM_RestoredOK=true
       fi
    fi
-   _NVRAM_IconsCleanupFiles_
 
-   "$NVRAM_RestoredOK" && return 0
+   _NVRAM_IconsCleanupFiles_
+   "$NVRAM_RestoredOK" && nvram commit && return 0
 
    Print_Output true "*WARNING*: NVRAM variable \"${NVRAM_ClientsKeyName}\" was NOT restored." "$WARN"
    return 1
@@ -1016,9 +1055,12 @@ CheckForCustomIconFiles()
    fi
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
+##----------------------------------------------##
 CheckForSavedIconFiles()
 {
-   theFileCount="$(ls -1 $theBackupFilesMatch 2>/dev/null | wc -l)"
+   theFileCount="$(_list2_ -1 "$theBackupFilesMatch" 2>/dev/null | wc -l)"
    if [ ! -d "$theUserIconsBackupDir" ] || [ "$theFileCount" -eq 0 ]
    then
        backupsFound=false
@@ -1031,10 +1073,10 @@ CheckForSavedIconFiles()
 
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
    then
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do theBackupFile="$FILE" ; break
        done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
        UpdateCustomUserIconsConfig SAVED "$theBackupFile"
        UpdateCustomUserIconsConfig RESTD "$theBackupFile"
@@ -1043,7 +1085,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-22] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 CheckForMaxIconsSavedFiles()
 {
@@ -1062,12 +1104,12 @@ CheckForMaxIconsSavedFiles()
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1" && \
       [ "$theFileCount" -gt "$highWaterMark" ]
    then   ## Remove the OLDEST backup file ##
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do
-           rm -f "$FILE" && theFileCount="$((theFileCount - 1))"
+           _remf_ "$FILE" && theFileCount="$((theFileCount - 1))"
            break
        done <<EOT
-$(ls -ltr $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1tr "$theBackupFilesMatch" 2>/dev/null)
 EOT
        if [ "$theFileCount" -le "$maxUserIconsBackupFiles" ]
        then return 0 ; fi
@@ -1078,13 +1120,13 @@ EOT
    printf "\n\n${YLWct}**WARNING**${NOct}\n"
    printf "The number of backup files [${REDct}${theFileCount}${NOct}] exceeds the maximum [${GRNct}${maxUserIconsBackupFiles}${NOct}].\n"
    printf "It's highly recommended that you either delete old backup files,\n"
-   printf "or move them off the router and save them on a different location.\n"
+   printf "or move them from the current directory to a different location.\n"
    _WaitForEnterKey_
    return 1
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-15] ##
+## Added/Modified by Martinski W. [2023-Jun-03] ##
 ##----------------------------------------------##
 BackupCustomUserIcons()
 {
@@ -1106,6 +1148,7 @@ BackupCustomUserIcons()
        Print_Output true "**ERROR**: Could NOT save icon files." "$ERR"
    else
        retCode=0
+       chmod 664 "$theFilePath"
        UpdateCustomUserIconsConfig SAVED "$theFilePath" STATUSupdate
        printf "All icon files were successfully saved in:\n[${GRNct}${theFilePath}${NOct}]\n"
    fi
@@ -1178,9 +1221,9 @@ _GetFileSelectionIndex_()
        then ## Index List ##
            indecesOK=true
            indexList="$(echo "$userInput" | sed 's/ //g' | sed 's/,/ /g')"
-           for index in $indexList
+           for theIndex in $indexList
            do
-              if [ "$index" -eq 0 ] || [ "$index" -gt "$1" ]
+              if [ "$theIndex" -eq 0 ] || [ "$theIndex" -gt "$1" ]
               then indecesOK=false ; break ; fi
            done
            "$indecesOK" && fileIndex="$indexList" && multiIndex=true && break
@@ -1191,7 +1234,7 @@ _GetFileSelectionIndex_()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-25] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 _GetFileSelection_()
 {
@@ -1204,7 +1247,7 @@ _GetFileSelection_()
    fileCount=0  fileIndex=0  multiIndex=false
    printf "\n${1}\n[Directory: ${GRNct}${theUserIconsBackupDir}${NOct}]\n\n"
 
-   while read -r backupFilePath
+   while IFS="$(printf '\n\t')" read -r backupFilePath
    do
        fileCount=$((fileCount+1))
        fileVar="file_${fileCount}_Name"
@@ -1212,7 +1255,7 @@ _GetFileSelection_()
        printf "${GRNct}%3d${NOct}. " "$fileCount"
        eval echo "\$${fileVar}"
    done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    echo
    _GetFileSelectionIndex_ "$fileCount" "$indexType"
@@ -1228,7 +1271,7 @@ EOT
            eval fileTemp="\$${fileVar}"
            if [ -z "$theFilePath" ]
            then theFilePath="${theUserIconsBackupDir}/$fileTemp"
-           else theFilePath="$theFilePath ${theUserIconsBackupDir}/$fileTemp"
+           else theFilePath="${theFilePath}|${theUserIconsBackupDir}/$fileTemp"
            fi
        done
    else
@@ -1240,7 +1283,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-24] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 GetSavedBackupFilesList()
 {
@@ -1256,13 +1299,13 @@ GetSavedBackupFilesList()
    echo "$userIconsBKPListHeader $theUserIconsBackupDir" >> "$SCRIPT_USER_ICONS_BKPLST"
 
    fileCount=0  fileName=""
-   while read -r backupFilePath
+   while IFS="$(printf '\n\t')" read -r backupFilePath
    do
        fileCount=$((fileCount+1))
        fileName="${backupFilePath##*/}"
        printf "%3d. ${fileName}\n" "$fileCount" >> "$SCRIPT_USER_ICONS_BKPLST"
    done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    return 0
 }
@@ -1336,9 +1379,9 @@ RestoreUserIconFilesReq()
    return $retCode
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-15] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
+##----------------------------------------------##
 RestoreCustomUserIcons()
 {
    theFilePath=""  theFileCount=0
@@ -1353,10 +1396,10 @@ RestoreCustomUserIcons()
 
    if [ $# -gt 0 ] && [ -n "$1" ] && "$1"
    then  ## Restore from the MOST recent backup file ##
-       while read -r FILE
+       while IFS="$(printf '\n\t')" read -r FILE
        do theFilePath="$FILE" ; break
        done <<EOT
-$(ls -lt $theBackupFilesMatch 2>/dev/null | awk -F ' ' '{print $9}')
+$(_list2_ -1t "$theBackupFilesMatch" 2>/dev/null)
 EOT
    else
        _GetFileSelection_ "Select a backup file to restore the icon files from:"
@@ -1416,7 +1459,7 @@ ListContentsOfSavedIconsFile()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-09] ##
+## Added/Modified by Martinski W. [2023-Jun-04] ##
 ##----------------------------------------------##
 DeleteSavedIconsFile()
 {
@@ -1443,7 +1486,9 @@ DeleteSavedIconsFile()
    fi
    if ! "$multiIndex"
    then theFileList="$fileToDelete"
-   else theFileList="$(echo "$fileToDelete" | sed 's/ /\n/g')"
+   else
+       theFileList="$(echo "$fileToDelete" | sed 's/|/\n/g')"
+       fileToDelete="$theFileList"
    fi
 
    printf "${delMsg}\n${GRNct}${theFileList}${NOct}\n"
@@ -1454,8 +1499,14 @@ DeleteSavedIconsFile()
        return 1
    fi
 
-   rm -f $fileToDelete
-   if [ -z "$(ls $fileToDelete 2>/dev/null)" ]
+   fileDelOK=true
+   local prevIFS="$IFS"
+   IFS="$(printf '\n\t')"
+   for thisFile in $fileToDelete
+   do if ! _remf_ "$thisFile" ; then fileDelOK=false ; fi ; done
+   IFS="$prevIFS"
+
+   if "$fileDelOK"
    then
        retCode=0
        printf "File deletion completed ${GRNct}successfully${NOct}.\n"
@@ -1566,7 +1617,10 @@ SetCustomUserIconsBackupDirectory()
            _WaitForEnterKey_ ; return 1
        fi
        if CheckForSavedIconFiles false
-       then mv -f $theBackupFilesMatch "$newBackupDirPath" ; fi
+       then
+           printf "\nMoving backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
+           _movef_ "$theBackupFilesMatch" "$newBackupDirPath"
+       fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"
        CheckForSavedIconFiles true
    fi
@@ -1694,7 +1748,7 @@ RestoreUserIconFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-02] ##
+## Added/Modified by Martinski W. [2023-Jun-10] ##
 ##----------------------------------------------##
 CheckAgainstNVRAMvar()
 {
@@ -1705,6 +1759,8 @@ CheckAgainstNVRAMvar()
    else theKeyVal="$(cat /jffs/nvram/dhcp_staticlist)"
    fi
    if [ -z "$theKeyVal" ] ; then return 0 ; fi
+   if ! echo "$theKeyVal" | grep -qE "^<.*"
+   then theKeyVal="<$theKeyVal" ; fi
 
    retCode=0
    MACx_Addrs="$(echo "$1" | awk -F ' ' '{print $1}')"
@@ -1764,7 +1820,7 @@ ValidateNVRAMentry()
 }
 
 ##----------------------------------------##
-## Modified by Martinski W. [2023-May-28] ##
+## Modified by Martinski W. [2023-Jun-10] ##
 ##----------------------------------------##
 ### nvram parsing code based on dhcpstaticlist.sh by @Xentrk ###
 Export_FW_DHCP_JFFS()
@@ -1879,7 +1935,10 @@ Export_FW_DHCP_JFFS()
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist"
 	fi
-	nvram get dhcp_staticlist > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
+	theKeyVal="$(nvram get dhcp_staticlist)"
+	if ! echo "$theKeyVal" | grep -qE "^<.*"
+	then theKeyVal="<$theKeyVal" ; fi
+	echo "$theKeyVal" > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
 	nvram commit
 	

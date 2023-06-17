@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Jun-10
+# Last Modified: 2023-Jun-16
 #---------------------------------------------------------
 
 #############################################
@@ -65,7 +65,7 @@ readonly DHCP_LEASE_FILE="DHCP_Lease"
 readonly SCRIPT_DHCP_LEASE_CONF="${SCRIPT_DIR}/$DHCP_LEASE_FILE"
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-22] ##
+## Added/Modified by Martinski W. [2023-Jun-16] ##
 ##----------------------------------------------##
 ## Start of script variables for the "Save Custom User Icons" feature ##
 ##--------------------------------------------------------------------##
@@ -117,8 +117,10 @@ readonly ListIconsOpt="ls"
 iconsFound=false
 backupsFound=false
 waitToConfirm=false
+inStartupMode=false
 maxUserIconsBackupFiles="$defMaxUserIconsBackupFiles"
 theUserIconsBackupDir="$defUserIconsBackupDir"
+prefUserIconsBackupDir="$theUserIconsBackupDir"
 userIconsBackupFPath="${theUserIconsBackupDir}/$userIconsSavedFLEname"
 theBackupFilesMatch="${userIconsBackupFPath}_*.$userIconsSavedFLEextn"
 ##------------------------------------------------------------------##
@@ -343,7 +345,7 @@ UpdateCustomUserIconsStatus()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-15] ##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
 ##----------------------------------------------##
 UpdateCustomUserIconsConfig()
 {
@@ -355,6 +357,10 @@ UpdateCustomUserIconsConfig()
        userIconsBackupFPath="${2}/$userIconsSavedFLEname"
        theBackupFilesMatch="${userIconsBackupFPath}_*.$userIconsSavedFLEextn"
    fi
+   if [ "$1" = "PREFS_DIR" ]
+   then prefUserIconsBackupDir="$2"
+   fi
+
    if [ $# -eq 3 ] && [ "$3" = "STATUSupdate" ] && \
       { [ "$1" = "SAVED" ] || [ "$1" = "RESTD" ] ; } && \
       { [ "$2" = "NONE" ] || [ -f "$2" ] ; }
@@ -376,7 +382,7 @@ UpdateCustomUserIconsConfig()
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-22] ##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
 ##----------------------------------------------##
 InitCustomUserIconsConfig()
 {
@@ -386,6 +392,7 @@ InitCustomUserIconsConfig()
        echo "$userIconsCFGCommentLine"   >  "$SCRIPT_USER_ICONS_CONFIG"
        echo "${thePrefix}SAVED_MAX=20"   >> "$SCRIPT_USER_ICONS_CONFIG"
        echo "${thePrefix}SAVED_DIR=NONE" >> "$SCRIPT_USER_ICONS_CONFIG"
+       echo "${thePrefix}PREFS_DIR=NONE" >> "$SCRIPT_USER_ICONS_CONFIG"
        echo "${thePrefix}FOUND=FALSE"    >> "$SCRIPT_USER_ICONS_CONFIG"
        echo "${thePrefix}SAVED=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
        echo "${thePrefix}RESTD=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
@@ -406,33 +413,70 @@ InitCustomUserIconsConfig()
    if ! grep -q "^${thePrefix}SAVED_MAX=" "$SCRIPT_USER_ICONS_CONFIG"
    then sed -i "2 i ${thePrefix}SAVED_MAX=20" "$SCRIPT_USER_ICONS_CONFIG"
    fi
+   if ! grep -q "^${thePrefix}PREFS_DIR=" "$SCRIPT_USER_ICONS_CONFIG"
+   then sed -i "4 i ${thePrefix}PREFS_DIR=NONE" "$SCRIPT_USER_ICONS_CONFIG"
+   fi
    return 1
 }
 
+##-------------------------------------##
+## Added by Martinski W. [2023-Jun-15] ##
+##-------------------------------------##
+ValidateUserIconsBackupDirectory()
+{
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1; fi 
+
+   [ ! -d "$theUserIconsBackupDir" ] && mkdir -m 755 "$theUserIconsBackupDir" 2>/dev/null
+   if [ ! -d "$theUserIconsBackupDir" ]
+   then
+       Print_Output true "**ERROR**: Backup directory [$theUserIconsBackupDir] NOT FOUND." "$ERR"
+       theUserIconsBackupDir="$1"
+       Print_Output true "Trying again with directory [$theUserIconsBackupDir]" "$PASS"
+       switchBackupDir=true
+       return 1
+   fi
+   return 0
+}
+
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-15] ##
+## Added/Modified by Martinski W. [2023-Jun-16] ##
 ##----------------------------------------------##
 GetUserIconsSavedVars()
 {
-   theUserIconsBackupDir="$(GetFromCustomUserIconsConfig "SAVED_DIR")"
-   if [ -z "$theUserIconsBackupDir" ] || [ "$theUserIconsBackupDir" = "NONE" ]
+   switchBackupDir=false
+   savdUserIconsBackupDir="$(GetFromCustomUserIconsConfig "SAVED_DIR")"
+   prefUserIconsBackupDir="$(GetFromCustomUserIconsConfig "PREFS_DIR")"
+
+   if [ -z "$savdUserIconsBackupDir" ] || [ "$savdUserIconsBackupDir" = "NONE" ]
+   then savdUserIconsBackupDir="$defUserIconsBackupDir" ; fi
+
+   if [ -z "$prefUserIconsBackupDir" ] || [ "$prefUserIconsBackupDir" = "NONE" ]
    then
-       theUserIconsBackupDir="$defUserIconsBackupDir"
-   else
-       [ ! -d "$theUserIconsBackupDir" ] && mkdir -m 755 "$theUserIconsBackupDir" 2>/dev/null
-       [ ! -d "$theUserIconsBackupDir" ] && theUserIconsBackupDir="$defUserIconsBackupDir"
+       prefUserIconsBackupDir="$savdUserIconsBackupDir"
+       UpdateCustomUserIconsConfig PREFS_DIR "$prefUserIconsBackupDir"
    fi
 
-   [ ! -d "$theUserIconsBackupDir" ] && mkdir -m 755 "$theUserIconsBackupDir" 2>/dev/null
-   [ ! -d "$theUserIconsBackupDir" ] && theUserIconsBackupDir="$altUserIconsBackupDir"
+   theUserIconsBackupDir="$prefUserIconsBackupDir"
+   for nextBKdir in "$savdUserIconsBackupDir" "$defUserIconsBackupDir" "$altUserIconsBackupDir"
+   do ValidateUserIconsBackupDirectory "$nextBKdir" && break ; done
 
    mkdir -m 755 "$theUserIconsBackupDir" 2>/dev/null
    if [ ! -d "$theUserIconsBackupDir" ]
    then
-       Print_Output true "**ERROR**: Directory [$theUserIconsBackupDir] NOT FOUND." "$ERR"
+       Print_Output true "**ERROR**: Backup directory [$theUserIconsBackupDir] NOT FOUND." "$ERR"
        return 1
    fi
-   UpdateCustomUserIconsConfig SAVED_DIR "$theUserIconsBackupDir"
+
+   if "$switchBackupDir"
+   then
+       if "$inStartupMode"
+       then LogMsg="*WARNING*: Temporary Backup directory [$theUserIconsBackupDir]"
+       else LogMsg="*WARNING*: Alternative Backup directory [$theUserIconsBackupDir]"  
+       fi
+       Print_Output true "$LogMsg" "$WARN"
+       _WaitForEnterKey_
+   fi
+   ! "$inStartupMode" && UpdateCustomUserIconsConfig SAVED_DIR "$theUserIconsBackupDir"
 
    maxUserIconsBackupFiles="$(GetFromCustomUserIconsConfig "SAVED_MAX")"
    if [ -z "$maxUserIconsBackupFiles" ] || \
@@ -449,6 +493,9 @@ GetUserIconsSavedVars()
    return 0
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
+##----------------------------------------------##
 Check_CustomUserIconsConfig()
 {
    if ! InitCustomUserIconsConfig
@@ -458,6 +505,7 @@ Check_CustomUserIconsConfig()
        FixCustomUserIconsConfig RESTD NONE
        FixCustomUserIconsConfig SAVED_MAX "$defMaxUserIconsBackupFiles"
        FixCustomUserIconsConfig SAVED_DIR "$defUserIconsBackupDir"
+       FixCustomUserIconsConfig PREFS_DIR "$defUserIconsBackupDir"
    fi
    GetUserIconsSavedVars
 }
@@ -1552,9 +1600,9 @@ SetMaxNumberOfBackupFiles()
    return 0
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-03] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
+##----------------------------------------------##
 SetCustomUserIconsBackupDirectory()
 {
    newBackupDirPath="DEFAULT"
@@ -1622,6 +1670,7 @@ SetCustomUserIconsBackupDirectory()
            _movef_ "$theBackupFilesMatch" "$newBackupDirPath"
        fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"
+       UpdateCustomUserIconsConfig PREFS_DIR "$newBackupDirPath"
        CheckForSavedIconFiles true
    fi
    return 0
@@ -1707,11 +1756,14 @@ IconsMenuSelectionHandler()
    done
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
+##----------------------------------------------##
 Menu_CustomUserIconsOps()
 {
+   waitToConfirm=true
    if GetUserIconsSavedVars
    then
-       waitToConfirm=true
        CheckForMaxIconsSavedFiles
        IconsMenuSelectionHandler
        CheckForMaxIconsSavedFiles
@@ -1719,11 +1771,12 @@ Menu_CustomUserIconsOps()
    Clear_Lock
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-02] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Jun-14] ##
+##----------------------------------------------##
 CheckUserIconFiles()
 {
+   waitToConfirm=false
    GetUserIconsSavedVars
    CheckForCustomIconFiles
    CheckForSavedIconFiles true
@@ -2223,7 +2276,11 @@ Menu_ProcessDHCPClients(){
 	Clear_Lock
 }
 
+##----------------------------------------##
+## Modified by Martinski W. [2023-Jun-16] ##
+##----------------------------------------##
 Menu_Startup(){
+	inStartupMode=true
 	Create_Dirs
 	Set_Version_Custom_Settings "local"
 	Create_Symlinks

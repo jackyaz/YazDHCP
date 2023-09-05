@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Sep-03
+# Last Modified: 2023-Sep-04
 #---------------------------------------------------------
 
 #############################################
@@ -1133,7 +1133,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-04] ##
+## Added/Modified by Martinski W. [2023-Sep-04] ##
 ##----------------------------------------------##
 CheckForMaxIconsSavedFiles()
 {
@@ -1141,7 +1141,7 @@ CheckForMaxIconsSavedFiles()
       [ "$theFileCount" -le "$maxUserIconsBackupFiles" ]
    then return 0 ; fi
 
-   if [ "$maxUserIconsBackupFiles" -gt "$defMaxUserIconsBackupFiles" ]
+   if [ "$maxUserIconsBackupFiles" -ge "$defMaxUserIconsBackupFiles" ]
    then highWaterMark="$maxUserIconsBackupFiles"
    else highWaterMark="$((maxUserIconsBackupFiles + theHighWaterMarkThreshold))"
    fi

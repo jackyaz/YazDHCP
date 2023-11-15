@@ -1670,8 +1670,7 @@ SetCustomUserIconsBackupDirectory()
        if CheckForSavedIconFiles && [ "$newBackupDirPath" != "$theUserIconsBackupDir" ]
        then
            printf "\nMoving existing backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
-           _movef_ "$theBackupFilesMatch" "$newBackupDirPath"
-           if [ $? -eq 0 ] && ! CheckForSavedIconFiles
+           if _movef_ "$theBackupFilesMatch" "$newBackupDirPath" && ! CheckForSavedIconFiles
            then rmdir "$theUserIconsBackupDir" 2>/dev/null ; fi
        fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"

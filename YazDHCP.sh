@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Jun-16
+# Last Modified: 2023-Sep-04
 #---------------------------------------------------------
 
 #############################################
@@ -1133,7 +1133,7 @@ EOT
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-04] ##
+## Added/Modified by Martinski W. [2023-Sep-04] ##
 ##----------------------------------------------##
 CheckForMaxIconsSavedFiles()
 {
@@ -1141,7 +1141,7 @@ CheckForMaxIconsSavedFiles()
       [ "$theFileCount" -le "$maxUserIconsBackupFiles" ]
    then return 0 ; fi
 
-   if [ "$maxUserIconsBackupFiles" -gt "$defMaxUserIconsBackupFiles" ]
+   if [ "$maxUserIconsBackupFiles" -ge "$defMaxUserIconsBackupFiles" ]
    then highWaterMark="$maxUserIconsBackupFiles"
    else highWaterMark="$((maxUserIconsBackupFiles + theHighWaterMarkThreshold))"
    fi
@@ -1601,7 +1601,7 @@ SetMaxNumberOfBackupFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-14] ##
+## Added/Modified by Martinski W. [2023-Sep-03] ##
 ##----------------------------------------------##
 SetCustomUserIconsBackupDirectory()
 {
@@ -1661,13 +1661,15 @@ SetCustomUserIconsBackupDirectory()
        mkdir -m 755 "$newBackupDirPath" 2>/dev/null
        if [ ! -d "$newBackupDirPath" ]
        then
-           printf "\n${REDct}**ERROR**: Could NOT create directory [$newBackupDirPath]${NOct}.\n"
+           printf "\n${REDct}**ERROR**${NOct}: Could NOT create directory [${REDct}${newBackupDirPath}${NOct}].\n"
            _WaitForEnterKey_ ; return 1
        fi
-       if CheckForSavedIconFiles false
+       if CheckForSavedIconFiles && [ "$newBackupDirPath" != "$theUserIconsBackupDir" ]
        then
-           printf "\nMoving backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
+           printf "\nMoving existing backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
            _movef_ "$theBackupFilesMatch" "$newBackupDirPath"
+           if [ $? -eq 0 ] && ! CheckForSavedIconFiles
+           then rmdir "$theUserIconsBackupDir" 2>/dev/null ; fi
        fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"
        UpdateCustomUserIconsConfig PREFS_DIR "$newBackupDirPath"

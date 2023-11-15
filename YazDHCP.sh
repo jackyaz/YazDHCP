@@ -12,10 +12,13 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Sep-04
+# Last Modified: 2023-Nov-15
 #---------------------------------------------------------
 
 #############################################
+# shellcheck disable=SC2012
+# shellcheck disable=SC2016
+# shellcheck disable=SC2059
 # shellcheck disable=SC2155
 # shellcheck disable=SC3043
 # shellcheck disable=SC3045
@@ -389,13 +392,15 @@ InitCustomUserIconsConfig()
    thePrefix="$userIconsVarPrefix"
    if [ ! -f "$SCRIPT_USER_ICONS_CONFIG" ]
    then
-       echo "$userIconsCFGCommentLine"   >  "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}SAVED_MAX=20"   >> "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}SAVED_DIR=NONE" >> "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}PREFS_DIR=NONE" >> "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}FOUND=FALSE"    >> "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}SAVED=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
-       echo "${thePrefix}RESTD=NONE"     >> "$SCRIPT_USER_ICONS_CONFIG"
+	   {
+		echo "$userIconsCFGCommentLine"
+		echo "${thePrefix}SAVED_MAX=20"
+		echo "${thePrefix}SAVED_DIR=NONE"
+		echo "${thePrefix}PREFS_DIR=NONE"
+		echo "${thePrefix}FOUND=FALSE"
+		echo "${thePrefix}SAVED=NONE"
+		echo "${thePrefix}RESTD=NONE"
+	   } > "$SCRIPT_USER_ICONS_CONFIG"
        return 0
    fi
 
@@ -424,7 +429,7 @@ InitCustomUserIconsConfig()
 ##-------------------------------------##
 ValidateUserIconsBackupDirectory()
 {
-   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1; fi 
+   if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1; fi
 
    [ ! -d "$theUserIconsBackupDir" ] && mkdir -m 755 "$theUserIconsBackupDir" 2>/dev/null
    if [ ! -d "$theUserIconsBackupDir" ]
@@ -471,7 +476,7 @@ GetUserIconsSavedVars()
    then
        if "$inStartupMode"
        then LogMsg="*WARNING*: Temporary Backup directory [$theUserIconsBackupDir]"
-       else LogMsg="*WARNING*: Alternative Backup directory [$theUserIconsBackupDir]"  
+       else LogMsg="*WARNING*: Alternative Backup directory [$theUserIconsBackupDir]"
        fi
        Print_Output true "$LogMsg" "$WARN"
        _WaitForEnterKey_
@@ -534,12 +539,12 @@ Conf_FromSettings()
 				fi
 				DHCPCLIENTS="${DHCPCLIENTS}$(echo "$line" | cut -f2 -d'=')"
 			done < "$TMPFILE"
-			
+
 			echo "$DHCPCLIENTS" | sed 's/|/:/g;s/></\n/g;s/>/ /g;s/<//g' > /tmp/yazdhcp_clients_parsed.tmp
-			
+
 			DO_NVRAM_COMMIT=false
 			echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
-			
+
 			while IFS='' read -r line || [ -n "$line" ]
 			do
 				if ! CheckAgainstNVRAMvar "$line" ; then DO_NVRAM_COMMIT=true ; fi
@@ -553,7 +558,7 @@ Conf_FromSettings()
 					fi
 				fi
 			done < /tmp/yazdhcp_clients_parsed.tmp
-			
+
 			LANSUBNET="$(nvram get lan_ipaddr | cut -d'.' -f1-3)"
 			LANNETMASK="$(nvram get lan_netmask)"
 			if [ "$LANNETMASK" = "255.255.255.0" ]; then
@@ -563,7 +568,7 @@ Conf_FromSettings()
 			fi
 			sort -t . -k 3,3n -k 4,4n "$SCRIPT_CONF.tmp" > "$SCRIPT_CONF"
 			rm -f "$SCRIPT_CONF.tmp"
-			
+
 			grep 'yazdhcp_version' "$SETTINGSFILE" > "$TMPFILE"
 			sed -i "\\~yazdhcp_~d" "$SETTINGSFILE"
 			sed -i "\\~${YazDHCP_LEASEtag}~d" "$SETTINGSFILE"
@@ -571,16 +576,16 @@ Conf_FromSettings()
 			cat "$SETTINGSFILE.bak" "$TMPFILE" > "$SETTINGSFILE"
 			rm -f /tmp/yazdhcp*
 			rm -f "$SETTINGSFILE.bak"
-			
+
 			RESTART_DNSMASQ="$DO_NVRAM_COMMIT"
 			Check_DHCP_LeaseTime
 			Update_Hostnames
 			Update_Staticlist
 			Update_Optionslist
 			if "$DO_NVRAM_COMMIT" ; then nvram commit ; fi
-			
+
 			Print_Output true "Merge of updated DHCP client information from WebUI completed successfully" "$PASS"
-			
+
 			if "$RESTART_DNSMASQ"
 			then
 				Print_Output true "Restarting dnsmasq for new DHCP settings to take effect." "$PASS"
@@ -659,18 +664,18 @@ Update_Version(){
 		isupdate="$(echo "$updatecheckresult" | cut -f1 -d',')"
 		localver="$(echo "$updatecheckresult" | cut -f2 -d',')"
 		serverver="$(echo "$updatecheckresult" | cut -f3 -d',')"
-		
+
 		if [ "$isupdate" = "version" ]; then
 			Print_Output true "New version of $SCRIPT_NAME available - updating to $serverver" "$PASS"
 		elif [ "$isupdate" = "md5" ]; then
 			Print_Output true "MD5 hash of $SCRIPT_NAME does not match - downloading updated $serverver" "$PASS"
 		fi
-		
+
 		Update_File shared-jy.tar.gz
-		
+
 		if [ "$isupdate" != "false" ]; then
 			Update_File Advanced_DHCP_Content.asp
-			
+
 			Download_File "$SCRIPT_REPO/update/$SCRIPT_NAME.sh" "/jffs/scripts/$SCRIPT_NAME" && Print_Output true "$SCRIPT_NAME successfully updated" "$PASS"
 			chmod 0755 /jffs/scripts/"$SCRIPT_NAME"
 			Clear_Lock
@@ -685,7 +690,7 @@ Update_Version(){
 			Clear_Lock
 		fi
 	fi
-	
+
 	if [ $# -gt 0 ] && [ "$1" = "force" ]; then
 		serverver=$(/usr/sbin/curl -fsL --retry 3 "$SCRIPT_REPO/version/$SCRIPT_NAME.sh" | grep "SCRIPT_VERSION=" | grep -m1 -oE 'v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})')
 		Print_Output true "Downloading latest version ($serverver) of $SCRIPT_NAME" "$PASS"
@@ -740,15 +745,15 @@ Create_Dirs(){
 	if [ ! -d "$SCRIPT_DIR" ]; then
 		mkdir -p "$SCRIPT_DIR"
 	fi
-	
+
 	if [ ! -d "$SHARED_DIR" ]; then
 		mkdir -p "$SHARED_DIR"
 	fi
-	
+
 	if [ ! -d "$SCRIPT_WEBPAGE_DIR" ]; then
 		mkdir -p "$SCRIPT_WEBPAGE_DIR"
 	fi
-	
+
 	if [ ! -d "$SCRIPT_WEB_DIR" ]; then
 		mkdir -p "$SCRIPT_WEB_DIR"
 	fi
@@ -779,7 +784,7 @@ Create_CustomUserIconsConfig()
 ##----------------------------------------##
 Create_Symlinks(){
 	rm -rf "${SCRIPT_WEB_DIR:?}/"* 2>/dev/null
-	
+
 	ln -s "$SCRIPT_CONF" "$SCRIPT_WEB_DIR/DHCP_clients.htm" 2>/dev/null
 	Create_DHCP_LeaseConfig
 	Create_CustomUserIconsConfig
@@ -798,11 +803,11 @@ Auto_ServiceEvent(){
 			if [ -f /jffs/scripts/service-event ]; then
 				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/service-event)
 				STARTUPLINECOUNTEX=$(grep -cx 'if echo "$2" | /bin/grep -q "'"$SCRIPT_NAME"'" ; then { /jffs/scripts/'"$SCRIPT_NAME"' service_event "$@" & }; fi # '"$SCRIPT_NAME" /jffs/scripts/service-event)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/service-event
 				fi
-				
+
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
 					echo 'if echo "$2" | /bin/grep -q "'"$SCRIPT_NAME"'" ; then { /jffs/scripts/'"$SCRIPT_NAME"' service_event "$@" & }; fi # '"$SCRIPT_NAME" >> /jffs/scripts/service-event
 				fi
@@ -816,7 +821,7 @@ Auto_ServiceEvent(){
 		delete)
 			if [ -f /jffs/scripts/service-event ]; then
 				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/service-event)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/service-event
 				fi
@@ -831,11 +836,11 @@ Auto_Startup(){
 			if [ -f /jffs/scripts/services-start ]; then
 				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/services-start)
 				STARTUPLINECOUNTEX=$(grep -cx "/jffs/scripts/$SCRIPT_NAME startup"' "$@" & # '"$SCRIPT_NAME" /jffs/scripts/services-start)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
 				fi
-				
+
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
 					echo "/jffs/scripts/$SCRIPT_NAME startup"' "$@" & # '"$SCRIPT_NAME" >> /jffs/scripts/services-start
 				fi
@@ -849,7 +854,7 @@ Auto_Startup(){
 		delete)
 			if [ -f /jffs/scripts/services-start ]; then
 				STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/scripts/services-start)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
 				fi
@@ -865,40 +870,40 @@ Auto_DNSMASQ(){
 				CONFCHANGED="false"
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
 				STARTUPLINECOUNTEX=$(grep -cx "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"${SCRIPT_NAME}_hostnames"'/d' /jffs/configs/dnsmasq.conf.add
 				fi
-				
+
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
 					echo "addn-hosts=$SCRIPT_DIR/.hostnames # ${SCRIPT_NAME}_hostnames" >> /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
 				STARTUPLINECOUNTEX=$(grep -cx "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"${SCRIPT_NAME}_staticlist"'/d' /jffs/configs/dnsmasq.conf.add
 				fi
-				
+
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
 					echo "dhcp-hostsfile=$SCRIPT_DIR/.staticlist # ${SCRIPT_NAME}_staticlist" >> /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
 				STARTUPLINECOUNTEX=$(grep -cx "dhcp-optsfile=$SCRIPT_DIR/.optionslist # ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 1 ] || { [ "$STARTUPLINECOUNTEX" -eq 0 ] && [ "$STARTUPLINECOUNT" -gt 0 ]; }; then
 					sed -i -e '/# '"${SCRIPT_NAME}_optionslist"'/d' /jffs/configs/dnsmasq.conf.add
 				fi
-				
+
 				if [ "$STARTUPLINECOUNTEX" -eq 0 ]; then
 					echo "dhcp-optsfile=$SCRIPT_DIR/.optionslist # ${SCRIPT_NAME}_optionslist" >> /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				if [ "$CONFCHANGED" = "true" ]; then
 					service restart_dnsmasq >/dev/null 2>&1
 				fi
@@ -912,26 +917,26 @@ Auto_DNSMASQ(){
 			if [ -f /jffs/configs/dnsmasq.conf.add ]; then
 				CONFCHANGED="false"
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_hostnames" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"${SCRIPT_NAME}_hostnames"'/d' /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_staticlist" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"${SCRIPT_NAME}_staticlist"'/d' /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				STARTUPLINECOUNT=$(grep -c "# ${SCRIPT_NAME}_optionslist" /jffs/configs/dnsmasq.conf.add)
-				
+
 				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
 					sed -i -e '/# '"${SCRIPT_NAME}_optionslist"'/d' /jffs/configs/dnsmasq.conf.add
 					CONFCHANGED="true"
 				fi
-				
+
 				if [ "$CONFCHANGED" = "true" ]; then
 					service restart_dnsmasq >/dev/null 2>&1
 				fi
@@ -986,7 +991,7 @@ _movef_()
    if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   mv -f $1 "$2" ; retcode="$?"
+   mv -f "$1" "$2" ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
@@ -996,7 +1001,7 @@ _remf_()
    if [ $# -lt 1 ] || [ -z "$1" ] || [ "$1" = "*" ] ; then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   rm -f $1 ; retcode="$?"
+   rm -f "$1" ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
@@ -1006,7 +1011,7 @@ _list2_()
    if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   ls $1 $2 ; retcode="$?"
+   ls "$1" "$2" ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
@@ -1017,13 +1022,13 @@ _list2_()
 _WaitForEnterKey_()
 {
    ! "$waitToConfirm" && return 0
-   echo ; read -sp "Press enter key to continue..." ; echo
+   echo ; read -rsp "Press enter key to continue..." ; echo
 }
 
 _WaitForConfirmation_()
 {
    ! "$waitToConfirm" && return 0
-   read -n 3 -p "$1 [yY|nN] N? " YESorNO ; echo
+   read -rn 3 -p "$1 [yY|nN] N? " YESorNO ; echo
    if echo "$YESorNO" | grep -qE '^(Y|y|yes)$'
    then return 0 ; else return 1 ; fi
 }
@@ -1040,8 +1045,7 @@ _NVRAM_IconsSaveKeyValue_()
 
    if [ -s "${NVRAM_Folder}/$NVRAM_ClientsKeyName" ]
    then
-       cp -fp "${NVRAM_Folder}/$NVRAM_ClientsKeyName" "$NVRAM_ClientsKeyFLEsaved"
-       if [ $? -eq 0 ] ; then NVRAM_SavedOK=true ; fi
+       if cp -fp "${NVRAM_Folder}/$NVRAM_ClientsKeyName" "$NVRAM_ClientsKeyFLEsaved"; then NVRAM_SavedOK=true ; fi
    fi
 
    theKeyValue="$(nvram get "$NVRAM_ClientsKeyName")"
@@ -1493,8 +1497,7 @@ ListContentsOfSavedIconsFile()
    then return 1 ; fi
 
    printf "Listing contents of backup file:\n[${GRNct}${theFilePath}${NOct}]\n\n"
-   tar -tzf "$theFilePath" -C "$theJFFSdir"
-   if [ $? -eq 0 ]
+   if tar -tzf "$theFilePath" -C "$theJFFSdir"
    then
        retCode=0
        printf "\nContents were listed ${GRNct}successfully${NOct}.\n"
@@ -1623,7 +1626,7 @@ SetCustomUserIconsBackupDirectory()
        if echo "$userInput" | grep -q '//'     || \
           echo "$userInput" | grep -q '/$'      || \
           ! echo "$userInput" | grep -q '^/'     || \
-          [ "$(expr length "$userInput")" -lt 4 ] || \
+          [ "${#userInput}" -lt 4 ] || \
           [ "$(echo "$userInput" | awk -F '/' '{print NF-1}')" -lt 2 ]
        then
            printf "${REDct}INVALID input.${NOct}\n"
@@ -1769,7 +1772,7 @@ Menu_CustomUserIconsOps()
        CheckForMaxIconsSavedFiles
        IconsMenuSelectionHandler
        CheckForMaxIconsSavedFiles
-   fi 
+   fi
    Clear_Lock
 }
 
@@ -1893,13 +1896,13 @@ Export_FW_DHCP_JFFS()
 			return 1
 		;;
 	esac
-	
+
 	if [ "$(nvram get dhcp_staticlist | wc -m)" -le 1 ]; then
 		Print_Output true "DHCP static assignments not exported from NVRAM, no data found" "$PASS"
 		Clear_Lock
 		return 1
 	fi
-	
+
 	if [ "$(Firmware_Version_Number "$(nvram get buildno)")" -lt "$(Firmware_Version_Number 386.4)" ]; then
 		if [ -f /jffs/nvram/dhcp_hostnames ]; then
 			if [ "$(wc -m < /jffs/nvram/dhcp_hostnames)" -le 1 ]; then
@@ -1912,22 +1915,22 @@ Export_FW_DHCP_JFFS()
 			Clear_Lock
 			return 1
 		fi
-		
+
 		if [ -f /jffs/nvram/dhcp_staticlist ]; then
 			sed 's/</\n/g;s/>/ /g;s/<//g' /jffs/nvram/dhcp_staticlist | sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 		else
 			nvram get dhcp_staticlist | sed 's/</\n/g;s/>/ /g;s/<//g'| sed '/^$/d' > /tmp/yazdhcp-ips.tmp
 		fi
-		
+
 		if [ -f /jffs/nvram/dhcp_hostnames ]; then
 			HOSTNAME_LIST=$(sed 's/>undefined//' /jffs/nvram/dhcp_hostnames)
 		else
 			HOSTNAME_LIST=$(nvram get dhcp_hostnames | sed 's/>undefined//')
 		fi
-		
+
 		OLDIFS=$IFS
 		IFS="<"
-		
+
 		for HOST in $HOSTNAME_LIST; do
 			if [ "$HOST" = "" ]; then
 				continue
@@ -1936,17 +1939,17 @@ Export_FW_DHCP_JFFS()
 			HOSTNAME=$(echo "$HOST" | cut -d ">" -f2)
 			echo "$MAC $HOSTNAME" >> /tmp/yazdhcp-hosts.tmp
 		done
-		
+
 		IFS=$OLDIFS
-		
+
 		sed -i 's/ $//' /tmp/yazdhcp-ips.tmp
 		sed -i 's/ $//' /tmp/yazdhcp-hosts.tmp
-		
+
 		awk 'NR==FNR { k[$1]=$2; next } { print $0, k[$1] }' /tmp/yazdhcp-hosts.tmp /tmp/yazdhcp-ips.tmp > /tmp/yazdhcp.tmp
-		
+
 		echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
 		sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
-		
+
 		while IFS='' read -r line || [ -n "$line" ]; do
 			if [ "$(echo "$line" | wc -w)" -eq 4 ]; then
 				echo "$line" | awk '{ print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
@@ -1958,9 +1961,9 @@ Export_FW_DHCP_JFFS()
 				fi
 			fi
 		done < /tmp/yazdhcp_sorted.tmp
-		
+
 		rm -f /tmp/yazdhcp*.tmp
-		
+
 		if [ -f /jffs/nvram/dhcp_hostnames ]; then
 			cp /jffs/nvram/dhcp_hostnames "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames"
 			rm -f /jffs/nvram/dhcp_hostnames
@@ -1977,16 +1980,16 @@ Export_FW_DHCP_JFFS()
 		if [ ! -f "$SCRIPT_CONF" ] || [ ! -s "$SCRIPT_CONF" ]
 		then echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF" ; fi
 		sort -t . -k 3,3n -k 4,4n /tmp/yazdhcp.tmp > /tmp/yazdhcp_sorted.tmp
-		
+
 		while IFS='' read -r line || [ -n "$line" ]
 		do
 			if ! ValidateNVRAMentry "$line" ; then continue ; fi
 			echo "$line" | awk 'FS="|" { print ""$1","$2","$4","$3""; }' >> "$SCRIPT_CONF"
 		done < /tmp/yazdhcp_sorted.tmp
-		
+
 		rm -f /tmp/yazdhcp*.tmp
 	fi
-	
+
 	if [ -f /jffs/nvram/dhcp_staticlist ]; then
 		cp /jffs/nvram/dhcp_staticlist "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist"
 	fi
@@ -1996,9 +1999,9 @@ Export_FW_DHCP_JFFS()
 	echo "$theKeyVal" > "$SCRIPT_DIR/.nvram_dhcp_staticlist"
 	nvram unset dhcp_staticlist
 	nvram commit
-	
+
 	Print_Output true "DHCP information successfully exported from NVRAM" "$PASS"
-	
+
 	RESTART_DNSMASQ=true
 	Update_Hostnames
 	Update_Staticlist
@@ -2022,7 +2025,7 @@ Update_Hostnames(){
 		existingmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	fi
 	tail -n +2 "$SCRIPT_CONF" | awk -F',' '$3 != "" { print ""$2" "$3""; }' > "$SCRIPT_DIR/.hostnames"
-	
+
 	updatedmd5="$(md5sum "$SCRIPT_DIR/.hostnames" | awk '{print $1}')"
 	if [ "$existingmd5" != "$updatedmd5" ]; then
 		Print_Output true "DHCP hostname list updated successfully" "$PASS"
@@ -2124,7 +2127,7 @@ MainMenu()
 	printf "\\n"
 	printf "\\e[1m##########################################################\\e[0m\\n"
 	printf "\\n"
-	
+
 	while true; do
 		printf "Choose an option:    "
 		read -r menu
@@ -2206,7 +2209,7 @@ MainMenu()
 			;;
 		esac
 	done
-	
+
 	ScriptHeader
 	MainMenu
 }
@@ -2214,9 +2217,9 @@ MainMenu()
 Menu_Install(){
 	Print_Output true "Welcome to $SCRIPT_NAME $SCRIPT_VERSION, a script by JackYaz"
 	sleep 1
-	
+
 	Print_Output true "Checking your router meets the requirements for $SCRIPT_NAME"
-	
+
 	if ! Check_Requirements; then
 		Print_Output true "Requirements for $SCRIPT_NAME not met, please see above for the reason(s)" "$CRIT"
 		PressEnter
@@ -2224,15 +2227,15 @@ Menu_Install(){
 		rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
 		exit 1
 	fi
-	
+
 	Create_Dirs
 	Set_Version_Custom_Settings local
 	Set_Version_Custom_Settings server "$SCRIPT_VERSION"
 	Create_Symlinks
-	
+
 	httpstring="https"
 	portstring=":$(nvram get https_lanport)"
-	
+
 	if [ "$(nvram get http_enable)" -eq 0 ]; then
 		httpstring="http"
 		portstring=""
@@ -2248,20 +2251,20 @@ Menu_Install(){
 			;;
 		esac
 	done
-	
+
 	Update_File Advanced_DHCP_Content.asp
 	Update_File shared-jy.tar.gz
 	Auto_Startup create 2>/dev/null
 	Auto_ServiceEvent create 2>/dev/null
 	Auto_DNSMASQ create 2>/dev/null
 	Shortcut_Script create
-	
+
 	echo "MAC,IP,HOSTNAME,DNS" > "$SCRIPT_CONF"
-	
+
 	Export_FW_DHCP_JFFS
-	
+
 	Print_Output true "$SCRIPT_NAME installed successfully!" "$PASS"
-	
+
 	Clear_Lock
 }
 
@@ -2274,7 +2277,7 @@ Menu_ProcessDHCPClients(){
 	Update_Staticlist
 	Update_Optionslist
 	if "$RESTART_DNSMASQ" ; then service restart_dnsmasq >/dev/null 2>&1 ; fi
-	
+
 	Clear_Lock
 }
 
@@ -2332,17 +2335,17 @@ Menu_Uninstall(){
 				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_staticlist")"
 				commitNVRAM=true
 			fi
-			
+
 			if [ -f "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames" ]; then
 				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_jffs_dhcp_hostnames")"
 				commitNVRAM=true
 			fi
-			
+
 			if [ -f "$SCRIPT_DIR/.nvram_dhcp_staticlist" ]; then
 				nvram set dhcp_staticlist="$(cat "$SCRIPT_DIR/.nvram_dhcp_staticlist")"
 				commitNVRAM=true
 			fi
-			
+
 			if [ -f "$SCRIPT_DIR/.nvram_dhcp_hostnames" ]; then
 				nvram set dhcp_hostnames="$(cat "$SCRIPT_DIR/.nvram_dhcp_hostnames")"
 				commitNVRAM=true
@@ -2364,7 +2367,7 @@ Menu_Uninstall(){
 			:
 		;;
 	esac
-	
+
 	rm -rf "$SCRIPT_WEB_DIR" 2>/dev/null
 	rm -f "/jffs/scripts/$SCRIPT_NAME" 2>/dev/null
 	Clear_Lock
@@ -2379,19 +2382,19 @@ Menu_Uninstall(){
 
 Check_Requirements(){
 	CHECKSFAILED="false"
-	
+
 	if [ "$(nvram get jffs2_scripts)" -ne 1 ]; then
 		nvram set jffs2_scripts=1
 		nvram commit
 		Print_Output true "Custom JFFS Scripts enabled" "$WARN"
 	fi
-	
+
 	if ! Firmware_Version_Check; then
 		Print_Output true "Unsupported firmware version detected" "$ERR"
 		Print_Output true "$SCRIPT_NAME requires Merlin 384.15/384.13_4 or Fork 43E5 (or later)" "$ERR"
 		CHECKSFAILED="true"
 	fi
-	
+
 	if [ "$CHECKSFAILED" = "false" ]; then
 		return 0
 	else

@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Nov-15
+# Last Modified: 2023-Nov-16
 #---------------------------------------------------------
 
 #############################################
@@ -392,15 +392,15 @@ InitCustomUserIconsConfig()
    thePrefix="$userIconsVarPrefix"
    if [ ! -f "$SCRIPT_USER_ICONS_CONFIG" ]
    then
-	   {
-		echo "$userIconsCFGCommentLine"
-		echo "${thePrefix}SAVED_MAX=20"
-		echo "${thePrefix}SAVED_DIR=NONE"
-		echo "${thePrefix}PREFS_DIR=NONE"
-		echo "${thePrefix}FOUND=FALSE"
-		echo "${thePrefix}SAVED=NONE"
-		echo "${thePrefix}RESTD=NONE"
-	   } > "$SCRIPT_USER_ICONS_CONFIG"
+       {
+        echo "$userIconsCFGCommentLine"
+        echo "${thePrefix}SAVED_MAX=20"
+        echo "${thePrefix}SAVED_DIR=NONE"
+        echo "${thePrefix}PREFS_DIR=NONE"
+        echo "${thePrefix}FOUND=FALSE"
+        echo "${thePrefix}SAVED=NONE"
+        echo "${thePrefix}RESTD=NONE"
+       } > "$SCRIPT_USER_ICONS_CONFIG"
        return 0
    fi
 
@@ -983,35 +983,76 @@ PressEnter(){
 	return 0
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Jun-04] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-16] ##
+##----------------------------------------------##
+#-------------------------------------------------------#
+# NOTE for disabling shellcheck 2086 [Martinski W.]
+# The first parameter [$1] MUST be UNQUOTED because it
+# can be a file path argument that contains a wildcard 
+# char [*] which when quoted is taken as a _literal_ 
+# asterisk, and that leads to a failed execution.
+# GOOD call example:
+# mv -f /PATH/TO/DIR/FileName_*.tar "/PATH/TO/NEW/DIR"
+#-------------------------------------------------------#
+# shellcheck disable=SC2086
 _movef_()
 {
-   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ]
+   then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   mv -f "$1" "$2" ; retcode="$?"
+   mv -f $1 "$2" ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-16] ##
+##----------------------------------------------##
+#-------------------------------------------------------#
+# NOTE for disabling shellcheck 2086 [Martinski W.]
+# The single parameter [$1] MUST be UNQUOTED because it
+# can be a file path argument that contains a wildcard 
+# char [*] which when quoted is taken as a _literal_ 
+# asterisk, and that leads to a failed execution.
+# GOOD call example:
+# rm -f /PATH/TO/DIR/FileName_*.tar
+#-------------------------------------------------------#
+# shellcheck disable=SC2086
 _remf_()
 {
-   if [ $# -lt 1 ] || [ -z "$1" ] || [ "$1" = "*" ] ; then return 1 ; fi
+   if [ $# -lt 1 ] || [ -z "$1" ] || [ "$1" = "*" ]
+   then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   rm -f "$1" ; retcode="$?"
+   rm -f $1 ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-16] ##
+##----------------------------------------------##
+#-------------------------------------------------------#
+# NOTE for disabling shellcheck 2086 [Martinski W.]
+# Both parameters [$1 $2] MUST be UNQUOTED because the
+# 1st one can consist of some optional arguments for
+# the 'ls' command (e.g. "ls -lt ..."), and 2nd param
+# can be a file path argument that contains a wildcard
+# char [*] which when quoted is taken as a _literal_
+# asterisk, and that leads to a failed execution.
+# GOOD call example:
+# ls -lt /PATH/TO/DIR/FileName_*.tar
+#-------------------------------------------------------#
+# shellcheck disable=SC2086
 _list2_()
 {
-   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ] ; then return 1 ; fi
+   if [ $# -lt 2 ] || [ -z "$1" ] || [ -z "$2" ]
+   then return 1 ; fi
    local prevIFS="$IFS"
    IFS="$(printf '\n\t')"
-   ls "$1" "$2" ; retcode="$?"
+   ls $1 $2 ; retcode="$?"
    IFS="$prevIFS"
    return "$retcode"
 }
@@ -1045,7 +1086,8 @@ _NVRAM_IconsSaveKeyValue_()
 
    if [ -s "${NVRAM_Folder}/$NVRAM_ClientsKeyName" ]
    then
-       if cp -fp "${NVRAM_Folder}/$NVRAM_ClientsKeyName" "$NVRAM_ClientsKeyFLEsaved"; then NVRAM_SavedOK=true ; fi
+       if cp -fp "${NVRAM_Folder}/$NVRAM_ClientsKeyName" "$NVRAM_ClientsKeyFLEsaved"
+       then NVRAM_SavedOK=true ; fi
    fi
 
    theKeyValue="$(nvram get "$NVRAM_ClientsKeyName")"
@@ -1623,10 +1665,10 @@ SetCustomUserIconsBackupDirectory()
        if echo "$userInput" | grep -q '/$'
        then userInput="${userInput%/*}" ; fi
 
-       if echo "$userInput" | grep -q '//'     || \
-          echo "$userInput" | grep -q '/$'      || \
-          ! echo "$userInput" | grep -q '^/'     || \
-          [ "${#userInput}" -lt 4 ] || \
+       if echo "$userInput" | grep -q '//'   || \
+          echo "$userInput" | grep -q '/$'   || \
+          ! echo "$userInput" | grep -q '^/' || \
+          [ "${#userInput}" -lt 4 ]          || \
           [ "$(echo "$userInput" | awk -F '/' '{print NF-1}')" -lt 2 ]
        then
            printf "${REDct}INVALID input.${NOct}\n"

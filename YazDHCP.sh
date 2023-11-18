@@ -12,7 +12,7 @@
 ##         https://github.com/jackyaz/YazDHCP/          ##
 ##                                                      ##
 ##########################################################
-# Last Modified: 2023-Nov-16
+# Last Modified: 2023-Nov-17
 #---------------------------------------------------------
 
 #############################################
@@ -1224,6 +1224,8 @@ EOT
 ##----------------------------------------------##
 BackupCustomUserIcons()
 {
+   local retCode
+
    if ! CheckForCustomIconFiles
    then
        UpdateCustomUserIconsConfig SAVED NONE STATUSupdate
@@ -1234,8 +1236,7 @@ BackupCustomUserIcons()
    _NVRAM_IconsSaveKeyValue_
 
    theFilePath="${userIconsBackupFPath}_$(date +"$savedFileDateTimeStr").$userIconsSavedFLEextn"
-   tar -czf "$theFilePath" -C "$theJFFSdir" "./$userIconsDIRname"
-   if [ $? -gt 1 ]
+   if ! tar -czf "$theFilePath" -C "$theJFFSdir" "./$userIconsDIRname"
    then
        retCode=1
        UpdateCustomUserIconsConfig SAVED NONE STATUSupdate
@@ -1248,28 +1249,31 @@ BackupCustomUserIcons()
    fi
    _NVRAM_IconsCleanupFiles_
    CheckForMaxIconsSavedFiles true && _WaitForEnterKey_
-   return $retCode
+   return "$retCode"
 }
 
 ##----------------------------------------------##
-## Added/modified by Martinski W. [2023-Apr-09] ##
+## Added/modified by Martinski W. [2023-Nov-17] ##
 ##----------------------------------------------##
 _GetFileSelectionIndex_()
 {
    if [ $# -eq 0 ] || [ -z "$1" ] ; then return 1 ; fi
 
+   local selectStr  promptStr  numRegEx  indexNum  indexList
+   local multiIndexListOK  theAllStr="${GRNct}all${NOct}"
+
    if [ "$1" -eq 1 ]
-   then selStr="${GRNct}1${NOct} | ${GRNct}e${NOct}=Exit"
-   else selStr="${GRNct}1${NOct}-${GRNct}${1}${NOct} | ${GRNct}e${NOct}=Exit"
+   then selectStr="${GRNct}1${NOct}"
+   else selectStr="${GRNct}1${NOct}-${GRNct}${1}${NOct}"
    fi
 
    if [ $# -lt 2 ] || [ "$2" != "-MULTIOK" ]
    then
        multiIndexListOK=false
-       promptStr="Enter selection [${selStr}]?"
+       promptStr="Enter selection [${selectStr}] [${theExitStr}]?"
    else
        multiIndexListOK=true
-       promptStr="Enter selection [${selStr} | ${GRNct}all${NOct}]?"
+       promptStr="Enter selection [${selectStr} | ${theAllStr}] [${theExitStr}]?"
    fi
    fileIndex=0  multiIndex=false
    numRegEx="([1-9]|[1-9][0-9])"
@@ -1277,9 +1281,9 @@ _GetFileSelectionIndex_()
    while true
    do
        printf "${promptStr}  " ; read -r userInput
-       if [ -z "$userInput" ] ; then echo ; continue ; fi
 
-       if echo "$userInput" | grep -qE "^(e|exit|Exit)$"
+       if [ -z "$userInput" ] || \
+          echo "$userInput" | grep -qE "^(e|exit|Exit)$"
        then fileIndex="NONE" ; break ; fi
 
        if "$multiIndexListOK" && \
@@ -1425,6 +1429,7 @@ RestoreUserIconFilesReq()
    fi
    UpdateCustomUserIconsConfig RESTD WAIT
 
+   local retCode
    fileCount=0  theFilePath=""
    fileIndex="$(echo "$1" | awk -F '_' '{print $3}')"
 
@@ -1458,8 +1463,7 @@ RestoreUserIconFilesReq()
    fi
    Print_Output true "Restoring icon files from: [${fileIndex}. $theFilePath]" "$PASS"
 
-   tar -xzf "$theFilePath" -C "$theJFFSdir"
-   if [ $? -gt 1 ]
+   if ! tar -xzf "$theFilePath" -C "$theJFFSdir"
    then
        retCode=1
        UpdateCustomUserIconsConfig RESTD NONE STATUSupdate
@@ -1470,14 +1474,15 @@ RestoreUserIconFilesReq()
        UpdateCustomUserIconsConfig RESTD "$theFilePath" STATUSupdate
        Print_Output true "All icon files were restored successfully." "$PASS"
    fi
-   return $retCode
+   return "$retCode"
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-04] ##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
 ##----------------------------------------------##
 RestoreCustomUserIcons()
 {
+   local retCode
    theFilePath=""  theFileCount=0
 
    if ! CheckForSavedIconFiles
@@ -1506,11 +1511,16 @@ EOT
    fi
 
    printf "Restoring icon files from:\n[${GRNct}$theFilePath${NOct}]\n"
-
-   tar -xzf "$theFilePath" -C "$theJFFSdir"
-   if [ $? -gt 1 ]
+   if ! _WaitForConfirmation_ "Please confirm selection"
    then
-       retCode=1
+       printf "Icon file(s) ${REDct}NOT${NOct} restored.\n"
+       _WaitForEnterKey_
+       return 99
+   fi
+
+   if ! tar -xzf "$theFilePath" -C "$theJFFSdir"
+   then
+       retCode=99
        UpdateCustomUserIconsConfig RESTD NONE STATUSupdate
        Print_Output true "**ERROR**: Could NOT restore icon files." "$ERR"
    else
@@ -1521,11 +1531,15 @@ EOT
        ls -AlF "$userIconsDIRpath"
    fi
    _WaitForEnterKey_
-   return $retCode
+   return "$retCode"
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
+##----------------------------------------------##
 ListContentsOfSavedIconsFile()
 {
+   local retCode
    theFilePath=""  theFileCount=0
 
    if ! CheckForSavedIconFiles
@@ -1544,18 +1558,19 @@ ListContentsOfSavedIconsFile()
        retCode=0
        printf "\nContents were listed ${GRNct}successfully${NOct}.\n"
    else
-       retCode=1
+       retCode=99
        printf "\n${REDct}**ERROR**:${NOct} Could NOT list contents.\n"
    fi
    _WaitForEnterKey_
-   return $retCode
+   return "$retCode"
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Jun-04] ##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
 ##----------------------------------------------##
 DeleteSavedIconsFile()
 {
+   local retCode
    theFilePath=""  fileIndex=0  multiIndex=false
 
    if ! CheckForSavedIconFiles
@@ -1589,7 +1604,7 @@ DeleteSavedIconsFile()
    then
        printf "File(s) ${REDct}NOT${NOct} deleted.\n"
        _WaitForEnterKey_
-       return 1
+       return 99
    fi
 
    fileDelOK=true
@@ -1604,25 +1619,24 @@ DeleteSavedIconsFile()
        retCode=0
        printf "File deletion completed ${GRNct}successfully${NOct}.\n"
    else
-       retCode=1
+       retCode=99
        printf "\n${REDct}**ERROR**:${NOct} Could NOT delete file(s).\n"
    fi
    _WaitForEnterKey_
-   return $retCode
+   return "$retCode"
 }
 
-##-------------------------------------##
-## Added by Martinski W. [2023-Apr-22] ##
-##-------------------------------------##
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
+##----------------------------------------------##
 SetMaxNumberOfBackupFiles()
 {
-   numRegEx="([1-9]|[1-9][0-9])"
-   newMaxNumOfBackups="DEFAULT"
+   local numRegEx="([1-9]|[1-9][0-9])"  newMaxNumOfBackups="DEFAULT"
    echo
    while true
    do
        printf "Enter the maximum number of backups of user icons to keep.\n"
-       printf "[${GRNct}${theMinUserIconsBackupFiles}${NOct}-${GRNct}${theMaxUserIconsBackupFiles}${NOct}] | [${GRNct}e${NOct}=Exit] | [DEFAULT: ${GRNct}${maxUserIconsBackupFiles}${NOct}]?  "
+       printf "[${GRNct}${theMinUserIconsBackupFiles}${NOct}-${GRNct}${theMaxUserIconsBackupFiles}${NOct}] | [DEFAULT: ${GRNct}${maxUserIconsBackupFiles}${NOct}] [${theExitStr}]?  "
        read -r userInput
 
        if [ -z "$userInput" ] || \
@@ -1646,16 +1660,16 @@ SetMaxNumberOfBackupFiles()
 }
 
 ##----------------------------------------------##
-## Added/Modified by Martinski W. [2023-Sep-03] ##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
 ##----------------------------------------------##
 SetCustomUserIconsBackupDirectory()
 {
-   newBackupDirPath="DEFAULT"
+   local newBackupDirPath="DEFAULT"
    echo
    while true
    do
-       printf "Enter the directory path where the backups subdirectory will be stored.\n"
-       printf "[DEFAULT: ${GRNct}${theUserIconsBackupDir%/*}${NOct}][${GRNct}e${NOct}=Exit]?  "
+       printf "Enter the directory path where the backups subdirectory [${GRNct}${userIconsSavedDIRname}${NOct}] will be stored.\n"
+       printf "[DEFAULT: ${GRNct}${theUserIconsBackupDir%/*}${NOct}] [${theExitStr}]?  "
        read -r userInput
 
        if [ -z "$userInput" ] || \
@@ -1712,7 +1726,8 @@ SetCustomUserIconsBackupDirectory()
        if CheckForSavedIconFiles && [ "$newBackupDirPath" != "$theUserIconsBackupDir" ]
        then
            printf "\nMoving existing backup files to directory:\n[${GRNct}$newBackupDirPath${NOct}]\n"
-           if _movef_ "$theBackupFilesMatch" "$newBackupDirPath" && ! CheckForSavedIconFiles
+           if _movef_ "$theBackupFilesMatch" "$newBackupDirPath" && \
+              ! CheckForSavedIconFiles
            then rmdir "$theUserIconsBackupDir" 2>/dev/null ; fi
        fi
        UpdateCustomUserIconsConfig SAVED_DIR "$newBackupDirPath"
@@ -1763,9 +1778,13 @@ ShowIconsMenuOptions()
    return 0
 }
 
+##----------------------------------------------##
+## Added/Modified by Martinski W. [2023-Nov-17] ##
+##----------------------------------------------##
 IconsMenuSelectionHandler()
 {
-   exitMenu=false
+   local exitMenu=false  retCode
+   local theExitStr="${GRNct}e${NOct}=Exit"
 
    until ! ShowIconsMenuOptions
    do
@@ -1788,17 +1807,41 @@ IconsMenuSelectionHandler()
           then BackupCustomUserIcons ; break ; fi
 
           if [ "$userOption" = "$RestIconsOpt" ] && "$backupsFound"
-          then RestoreCustomUserIcons ; break ; fi
+          then
+              while true
+              do
+                  RestoreCustomUserIcons ; retCode="$?"
+                  if [ "$retCode" -eq 99 ]
+                  then continue ; else break ; fi
+              done
+              break
+          fi
 
           if [ "$userOption" = "$DeltIconsOpt" ] && "$backupsFound"
-          then DeleteSavedIconsFile ; break ; fi
+          then
+              while true
+              do
+                  DeleteSavedIconsFile ; retCode="$?"
+                  if [ "$retCode" -eq 99 ]
+                  then continue ; else break ; fi
+              done
+              break
+          fi
 
           if [ "$userOption" = "$ListIconsOpt" ] && "$backupsFound"
-          then ListContentsOfSavedIconsFile ; break ; fi
+          then
+              while true
+              do
+                  ListContentsOfSavedIconsFile ; retCode="$?"
+                  if [ "$retCode" -eq 99 ] || [ "$retCode" -eq 0 ]
+                  then continue ; else break ; fi
+              done
+              break
+          fi
 
           printf "${REDct}INVALID option.${NOct}\n"
       done
-      $exitMenu && break
+      "$exitMenu" && break
    done
 }
 

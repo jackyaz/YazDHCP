@@ -27,7 +27,7 @@
 ### Start of script variables ###
 readonly SCRIPT_NAME="YazDHCP"
 readonly SCRIPT_VERSION="v1.0.6"
-SCRIPT_BRANCH="develop"
+SCRIPT_BRANCH="master"
 SCRIPT_REPO="https://jackyaz.io/$SCRIPT_NAME/$SCRIPT_BRANCH"
 readonly SCRIPT_DIR="/jffs/addons/$SCRIPT_NAME.d"
 readonly SCRIPT_CONF="$SCRIPT_DIR/DHCP_clients"

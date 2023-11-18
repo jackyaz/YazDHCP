@@ -56,6 +56,12 @@ thead.collapsible-jquery {
 <script language="JavaScript" type="text/javascript" src="/js/httpApi.js"></script>
 <script>
 
+/**---------------------------------------------**/
+/** Last Modified by Martinski W. [2023-Jun-14] **/
+/**---------------------------------------------**/
+
+const actionScriptPrefix="start_YazDHCP";
+
 /**----------------------------------------------**/
 /** Added/modified by Martinski W. [2023-Jan-28] **/
 /**----------------------------------------------**/
@@ -153,11 +159,181 @@ const theDHCPLeaseTime=
    },
    showHint: function()
    {
-      let tag_name= document.getElementsByTagName('a');
-	  for (var i=0; i<tag_name.length; i++)
+      let tag_name = document.getElementsByTagName('a');
+      for (var i=0; i<tag_name.length; i++)
       { tag_name[i].onmouseout=nd; }
       return overlib(this.hintMsg(),0,0);
    }
+};
+
+/**-------------------------------------**/
+/** Added by Martinski W. [2023-Apr-22] **/
+/**-------------------------------------**/
+const WaitMsgPopupBox=
+{
+   waitCounter: 0, waitMaxSecs: 0,
+   waitTimerOn: false,
+   waitTimerID: null,
+   waitMsgBox:  null,
+   waitMsgTemp:  '',
+   waitMsgBoxID: 'myWaitMsgPopupBoxID',
+
+   CloseMsg: function()
+   {
+      this.waitTimerOn = false;
+      this.waitCounter = 0;
+      this.waitMaxSecs = 0;
+      this.waitMsgTemp = '';
+      if (this.waitTimerID != null)
+      {
+         clearTimeout (this.waitTimerID);
+         this.waitTimerID = null;
+      }
+      if (this.waitMsgBox != null)
+      { this.waitMsgBox.close(); }
+   },
+
+   StartMsg: function (waitMsg, msSecsWaitMax, showCounter)
+   {
+      if (this.waitTimerOn) { return; }
+      this.waitTimerOn = true;
+      this.waitCounter = 0;
+      this.waitMsgTemp = '';
+      this.waitMaxSecs = Math.round(msSecsWaitMax / 1000);
+      this.ShowTimedMsg (waitMsg, showCounter);
+   },
+
+   ShowTimedMsg: function (waitMsg, showCounter)
+   {
+      if (this.waitCounter > this.waitMaxSecs) { this.CloseMsg() ; return; }
+      else if (! this.waitTimerOn) { return; }
+
+      this.waitMsgBox = document.getElementById(this.waitMsgBoxID);
+      if (this.waitMsgBox == null)
+      {
+         this.waitMsgBox = document.body.appendChild (document.createElement("dialog"));
+         this.waitMsgBox.setAttribute("id", this.waitMsgBoxID);
+      }
+      let msSecsWaitInterval = 1000;
+      let theWaitCounter = (this.waitCounter + 1);
+      if (this.waitCounter == 0) { this.waitMsgBox.close(); }
+
+      if (! showCounter)
+      {
+         if (this.waitCounter == 0)
+         { this.waitMsgTemp = waitMsg + "\n >"; }
+         else
+         { this.waitMsgTemp = this.waitMsgTemp + ">"; }
+         this.waitMsgBox.innerText = this.waitMsgTemp;
+      }
+      else if (showCounter)
+      {
+         this.waitMsgBox.innerText = waitMsg + ` [${theWaitCounter}]`;
+      }
+      if (this.waitCounter == 0) { this.waitMsgBox.showModal(); }
+      this.waitCounter = theWaitCounter;
+      this.waitTimerID = setTimeout (function () 
+           { WaitMsgPopupBox.ShowTimedMsg (waitMsg, showCounter); }, msSecsWaitInterval);
+   },
+
+   ShowMsg: function (waitMsg, msSecsWait)
+   {
+      this.waitMsgBox = document.getElementById(this.waitMsgBoxID);
+      if (this.waitMsgBox == null)
+      {
+         this.waitMsgBox = document.body.appendChild (document.createElement("dialog"));
+         this.waitMsgBox.setAttribute("id", this.waitMsgBoxID);
+      }
+      this.waitMsgBox.close();
+      this.waitMsgBox.innerText = waitMsg;
+      this.waitMsgBox.showModal();
+      setTimeout (function () { WaitMsgPopupBox.waitMsgBox.close(); }, msSecsWait);
+   }
+};
+
+/**-------------------------------------**/
+/** Added by Martinski W. [2023-Apr-23] **/
+/**-------------------------------------**/
+const AlertMsgBox=
+{
+   alertMsgBox: null,
+   alertMsgBoxID: 'myAlertMsgPopupBoxID',
+   BuildAlertBox: function (theAlertMsg)
+   {
+       let htmlCode;
+       const alertMsgList = theAlertMsg.split('\n');
+
+       htmlCode = '<div name="alertMsgBox" id="myAlertMsgBox">'
+                + '<div class = "message">';
+       for (var indx = 0; indx < alertMsgList.length; indx++)
+       { htmlCode += '<p>' + alertMsgList[indx] + '</p>'; }
+       htmlCode += '</div>'
+                + '<div style="text-align:center">'
+                + '<button class="button_gen" id="myAlertBoxOKButton"'
+                + ' style="margin-top:15px;"'
+                + ' onclick="AlertMsgBox.CloseAlert();">OK</button>'
+                + '</div></div>';
+
+       return (htmlCode);
+   },
+   CloseAlert: function()
+   {
+      if (this.alertMsgBox != null) { this.alertMsgBox.close(); }
+   },
+   ShowAlert: function (theAlertMsg)
+   {
+      this.alertMsgBox = document.getElementById(this.alertMsgBoxID);
+      if (this.alertMsgBox == null)
+      {
+          this.alertMsgBox = document.body.appendChild (document.createElement("dialog"));
+          this.alertMsgBox.setAttribute("id", this.alertMsgBoxID);
+      }
+      this.alertMsgBox.close();
+      this.alertMsgBox.innerHTML = this.BuildAlertBox (theAlertMsg);
+      this.alertMsgBox.showModal();
+   }
+};
+
+/**----------------------------------------------**/
+/** Added/modified by Martinski W. [2023-Apr-24] **/
+/**----------------------------------------------**/
+const customUserIcons=
+{
+   backupOp:  false,
+   restoreOp: false,
+   varPrefix: 'Icons_',
+   theUserIconsOrigDir: '/jffs/usericon',
+   theUserIconsSavedDir: 'INIT',
+   theUserIconsSavedPath: 'NONE',
+   theUserIconsSavedFile: 'NONE',
+   theBackupFilePathList: [],
+   theBackupFilePathIndex: 0,
+   theBackupFileSelectFormID:   'myBackupFileSelectForm',
+   theBackupFileSelectDialogID: 'myBackupFileSelectDialog',
+   maxTries: 4, numTries: 0, initState: true,
+   enableBackupButton: false,
+   enableRestoreButton: false,
+
+   backupOKMsg:  'Custom user icon files were successfully saved to',
+   restoreOKMsg: 'Custom user icon files were successfully restored from',
+
+   configWaitMsg:  'Getting data, please wait...',
+   backupWaitMsg:  'Saving icon files, please wait...',
+   getListWaitMsg: 'Getting list of backup files, please wait...',
+   restoreWaitMsg: 'Restoring icon files, please wait...',
+
+   backupErrorMsg: 'ERROR: Custom user icon files were not saved.',
+   backupEnabledMsg: function()
+   { return (`Back up user icons found in the directory:\n"${this.theUserIconsOrigDir}"\n`); },
+   backupDisabledMsg: function()
+   { return (`No user icons found in the directory:\n"${this.theUserIconsOrigDir}"\n`); },
+
+   restoreErrorMsg1: 'ERROR: Custom user icon backup list was not found.',
+   restoreErrorMsg2: 'ERROR: Custom user icon files were not restored.',
+   restoreEnabledMsg: function()
+   { return (`Restore user icons from a backup file found in the directory:\n"${this.theUserIconsSavedDir}"\n`); },
+   restoreDisabledMsg: function()
+   { return (`No backup files found in the directory:\n"${this.theUserIconsSavedDir}"\n`); }
 };
 
 /**-------------------------------------**/
@@ -244,6 +420,12 @@ var backup_dns = "";
 var backup_name = "";
 var sortfield, sortdir;
 var sorted_array = [];
+
+/**---------------------------------------**/
+/** Ported by Martinski W. [2023-Jun-13]  **/
+/** For IPv6 DNS support (from 388.X ASP) **/
+/**---------------------------------------**/
+var ipv6_proto_orig = httpApi.nvramGet(["ipv6_service"]).ipv6_service;
 
 function SelectedFile(){
 	var fileList = event.target.files;
@@ -394,6 +576,444 @@ function PageSetup(){
 }
 
 /**-------------------------------------**/
+/** Added by Martinski W. [2023-Apr-22] **/
+/**-------------------------------------**/
+var theButtonBackStyle = null;
+function SetButtonGenState (buttonID, enableState, titleStr)
+{
+	if (enableState)
+	{
+		document.getElementById(buttonID).disabled = false;
+		document.getElementById(buttonID).title = titleStr;
+		if (theButtonBackStyle != null)
+		{ document.getElementById(buttonID).style.background = theButtonBackStyle; }
+	}
+	else
+	{
+		if (document.getElementById(buttonID).disabled == false)
+		{ theButtonBackStyle = document.getElementById(buttonID).style.background; }
+		document.getElementById(buttonID).disabled = true;
+		document.getElementById(buttonID).title = titleStr;
+		document.getElementById(buttonID).style.background = "grey";
+	}
+}
+
+function SetBackUpIconsButtonState (enableState)
+{
+	let titleStr;
+	if (enableState)
+	{ titleStr = customUserIcons.backupEnabledMsg(); }
+	else if (customUserIcons.backupOp)
+	{ titleStr = customUserIcons.backupWaitMsg; }
+	else
+	{ titleStr = customUserIcons.backupDisabledMsg(); }
+	SetButtonGenState ('BackupIconsBtn', enableState,  titleStr);
+}
+
+function SetRestoreIconsButtonState (enableState)
+{
+	let titleStr;
+	if (enableState)
+	{ titleStr = customUserIcons.restoreEnabledMsg(); }
+	else if (customUserIcons.restoreOp)
+	{ titleStr = customUserIcons.restoreWaitMsg; }
+	else
+	{ titleStr = customUserIcons.restoreDisabledMsg(); }
+	SetButtonGenState ('RestoreIconsBtn', enableState, titleStr);
+}
+
+/**-------------------------------------**/
+/** Added by Martinski W. [2023-Apr-22] **/
+/**-------------------------------------**/
+function FileSelectionHandler (fileSelDialog)
+{
+   if (fileSelDialog.returnValue == "FileSelSubmitButton")
+   {
+       fileSelDialog.returnValue = "SUBMIT";
+       let fileSelForm = document.getElementById(customUserIcons.theBackupFileSelectFormID);
+       let selectIndex = fileSelForm.backupFilePath.selectedIndex;
+
+       const theFileIndex = customUserIcons.theBackupFilePathIndex;
+       if (theFileIndex > 0)
+       {
+           customUserIcons.numTries = 0;
+           customUserIcons.restoreOp = true;
+           WaitMsgPopupBox.StartMsg (customUserIcons.restoreWaitMsg, 10000, false);
+           let actionScriptVal = actionScriptPrefix + 'restoreIcons_reqNum_' + theFileIndex;
+           document.formScriptActions.action_script.value = actionScriptVal;
+           document.formScriptActions.submit();
+           setTimeout(GetCustomUserIconsStatus, 3000);
+       }
+       else
+       {
+           alert ("INVALID selection.");
+           ShowBackupFileSelectorDialog();
+       }
+   }
+   else if (fileSelDialog.returnValue == "SUBMIT")
+   {
+       customUserIcons.numTries = 0;
+       customUserIcons.restoreOp = true;
+       customUserIcons.enableRestoreButton = false;
+   }
+   else
+   {
+       customUserIcons.numTries = 0;
+       customUserIcons.enableRestoreButton = true;
+       SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+       setTimeout(GetCustomUserIconsConfig, 500);
+   }
+}
+
+function GetFileSelectionIndex (formInput)
+{
+    let selectIndex = formInput.selectedIndex;
+    let selectValue = formInput[selectIndex].value;
+    let selectTextS = formInput[selectIndex].text;
+    customUserIcons.theBackupFilePathIndex = formInput.selectedIndex;
+}
+
+function BuildBackupFileSelectorDialog()
+{
+   let htmlCode;
+
+   htmlCode = '<form method="dialog" name="myFileSelectForm" '
+            + 'id="' + customUserIcons.theBackupFileSelectFormID + '">'
+            + '<h3>Select one of the backup files listed below:</h3>'
+            + '<p> <label>'
+            + '<select name="backupFilePath" id="myBackupFilePath" onchange="GetFileSelectionIndex(this);" required>';
+
+   for (var indx = 0; indx < customUserIcons.theBackupFilePathList.length; indx++)
+   {
+       htmlCode += '<option value="' + indx + '">'
+                + customUserIcons.theBackupFilePathList[indx][0] + '</option>';
+   }
+   htmlCode += '</select> </label> </p>'
+             + '<menu>'
+             + '<button type="cancel" class="button_gen" id="myFileSelCancelBtn"'
+             + ' style="margin-left:-10px; margin-top:10px" value="FileSelCancelButton">Cancel</button>'
+             + '<button type="submit" class="button_gen" id="myFileSelSubmitBtn"'
+             + ' style="margin-left:20px; margin-top:10px" value="FileSelSubmitButton">OK</button>'
+             + '</menu> </form>';
+
+   return (htmlCode);
+}
+
+function ShowBackupFileSelectorDialog()
+{
+   let fileSelDialog = document.getElementById(customUserIcons.theBackupFileSelectDialogID);
+   if (fileSelDialog == null)
+   {
+       fileSelDialog = document.body.appendChild (document.createElement("dialog"));
+       fileSelDialog.setAttribute("id", customUserIcons.theBackupFileSelectDialogID);
+       fileSelDialog.addEventListener("close", () =>
+       { FileSelectionHandler (fileSelDialog); });
+   }
+   customUserIcons.theBackupFilePathIndex = 0;
+   fileSelDialog.returnValue = "NONE";
+   fileSelDialog.innerHTML = BuildBackupFileSelectorDialog();
+   fileSelDialog.showModal();
+}
+
+function GetCustomUserIconsBackupList()
+{
+	$.ajax({
+		url: '/ext/YazDHCP/CustomUserIconsBackupList.htm',
+		dataType: 'text',
+		error: function(xhr)
+		{
+			if (customUserIcons.numTries < customUserIcons.maxTries)
+			{
+				customUserIcons.numTries += 1;
+				setTimeout(GetCustomUserIconsBackupList, 2000);
+				return false;
+			}
+			WaitMsgPopupBox.CloseMsg();
+			AlertMsgBox.ShowAlert (customUserIcons.restoreErrorMsg1);
+			customUserIcons.numTries = 0;
+			customUserIcons.restoreOp = false;
+			customUserIcons.enableRestoreButton = true;
+			SetBackUpIconsButtonState (customUserIcons.enableBackupButton);
+			SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+			setTimeout(GetCustomUserIconsConfig, 1000);
+		},
+		success: function(data)
+		{
+			var fileList = data.split('\n');
+			fileList = fileList.filter(Boolean);
+			let fileCount = fileList.length;
+			let commentStart;
+            customUserIcons.theBackupFilePathList = [];
+
+			for (var indx = 0; indx < fileCount; indx++)
+			{
+				commentStart = fileList[indx].indexOf('#');
+				if (commentStart != -1) {continue;}
+				customUserIcons.theBackupFilePathList.push ([`${fileList[indx]}`]);
+			}
+			WaitMsgPopupBox.CloseMsg();
+			customUserIcons.numTries=0;
+			if (customUserIcons.theBackupFilePathList.length == 0) 
+			{
+				AlertMsgBox.ShowAlert (customUserIcons.restoreErrorMsg1);
+				setTimeout(GetCustomUserIconsConfig, 1000);
+			}
+			else
+			{
+				setTimeout(ShowBackupFileSelectorDialog, 100);
+			}
+		}
+	});
+}
+
+function GetCustomUserIconsStatus()
+{
+	$.ajax({
+		url: '/ext/YazDHCP/CustomUserIconsStatus.htm',
+		dataType: 'text',
+		error: function(xhr)
+		{
+			if (customUserIcons.numTries < customUserIcons.maxTries)
+			{
+				customUserIcons.numTries += 1;
+				setTimeout(GetCustomUserIconsStatus, 2000);
+				return false;
+			}
+			WaitMsgPopupBox.CloseMsg();
+			if (customUserIcons.restoreOp)
+			{ AlertMsgBox.ShowAlert (customUserIcons.restoreErrorMsg2); }
+			else if (customUserIcons.backupOp)
+			{ AlertMsgBox.ShowAlert (customUserIcons.backupErrorMsg); }
+
+			customUserIcons.numTries = 0;
+			customUserIcons.backupOp = false;
+			customUserIcons.restoreOp = false
+			SetBackUpIconsButtonState (customUserIcons.enableBackupButton);
+			SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+			setTimeout(GetCustomUserIconsConfig, 1000);
+		},
+		success: function(data)
+		{
+			var settings = data.split('\n');
+			settings = settings.filter(Boolean);
+			let linesCount = settings.length;
+			let theVarName, commentStart, theMsge="";
+			let theSetting, settingName, settingValue="";
+
+			customUserIcons.theUserIconsSavedPath = 'NONE';
+			customUserIcons.theUserIconsSavedFile = 'NONE';
+
+			for (var i = 0; i < linesCount; i++)
+			{
+				theVarName = settings[i].match(`^${customUserIcons.varPrefix}`);
+				commentStart = settings[i].indexOf('#');
+				if (commentStart != -1 || theVarName == null) { continue; }
+				theSetting = settings[i].split('=');
+				settingName = theSetting[0];
+				settingValue = theSetting[1];
+
+				switch (settingName)
+				{
+					case `${customUserIcons.varPrefix}DIRP`:
+						if (settingValue != "")
+						{ customUserIcons.theUserIconsSavedPath = settingValue; }
+						break;
+
+					case `${customUserIcons.varPrefix}FILE`:
+						if (settingValue != "")
+						{ customUserIcons.theUserIconsSavedFile = settingValue; }
+						break;
+
+					case `${customUserIcons.varPrefix}RESTD`:
+						if (! customUserIcons.restoreOp) { break; }
+						if (settingValue == "NONE")
+						{
+						    customUserIcons.theUserIconsSavedPath = 'NONE';
+						    customUserIcons.theUserIconsSavedFile = 'NONE';
+						    customUserIcons.enableRestoreButton = false;              
+						}
+						else
+						{
+						    customUserIcons.enableBackupButton = true;
+						    customUserIcons.enableRestoreButton = true;
+						}
+						break;
+
+					case `${customUserIcons.varPrefix}SAVED`:
+						if (! customUserIcons.backupOp) { break; }
+						if (settingValue == "NONE")
+						{
+						    customUserIcons.theUserIconsSavedPath = 'NONE';
+						    customUserIcons.theUserIconsSavedFile = 'NONE';
+						    customUserIcons.enableRestoreButton = false;
+						}
+						else
+						{
+						    customUserIcons.enableBackupButton = true;
+						    customUserIcons.enableRestoreButton = true;
+						}
+						break;
+				}
+			}
+			if (customUserIcons.restoreOp)
+			{
+				if (customUserIcons.theUserIconsSavedFile == 'NONE')
+				{ theMsge = customUserIcons.restoreErrorMsg2; }
+				else
+				{
+				    theMsge = `${customUserIcons.restoreOKMsg}` +
+						      `\nFolder:\n<b>${customUserIcons.theUserIconsSavedPath}</b>` +
+						      `\nFilename:\n<b>${customUserIcons.theUserIconsSavedFile}</b>\n`;
+				}
+			}
+			else if (customUserIcons.backupOp)
+			{
+				if (customUserIcons.theUserIconsSavedFile == 'NONE')
+				{ theMsge = customUserIcons.backupErrorMsg; }
+				else
+				{
+				    theMsge = `${customUserIcons.backupOKMsg}` +
+						      `\nFolder:\n<b>${customUserIcons.theUserIconsSavedPath}</b>` +
+						      `\nFilename:\n<b>${customUserIcons.theUserIconsSavedFile}</b>\n`;
+				}
+			}
+			WaitMsgPopupBox.CloseMsg();
+			if (theMsge != "") { AlertMsgBox.ShowAlert (theMsge); }
+			customUserIcons.numTries = 0;
+			customUserIcons.backupOp = false;
+			customUserIcons.restoreOp = false;
+			SetBackUpIconsButtonState (customUserIcons.enableBackupButton);
+			SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+			setTimeout(GetCustomUserIconsConfig, 1000);
+		}
+	});
+}
+
+function GetCustomUserIconsConfig()
+{
+	$.ajax({
+		url: '/ext/YazDHCP/CustomUserIconsConfig.htm',
+		dataType: 'text',
+		error: function(xhr)
+		{
+			if (customUserIcons.initState)
+			{
+				customUserIcons.initState = false;
+				CheckUserIconFiles();
+				return false;
+			}
+			if (customUserIcons.numTries < customUserIcons.maxTries)
+			{
+				customUserIcons.numTries += 1;
+				WaitMsgPopupBox.StartMsg (customUserIcons.configWaitMsg, 9000, false);
+				setTimeout(GetCustomUserIconsConfig, 2000);
+				return false;
+			}
+			WaitMsgPopupBox.CloseMsg();
+			customUserIcons.numTries = 0;
+			customUserIcons.backupOp = false;
+			customUserIcons.restoreOp = false
+			SetBackUpIconsButtonState (customUserIcons.enableBackupButton);
+			SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+		},
+		success: function(data)
+		{
+			if (customUserIcons.initState)
+			{
+				customUserIcons.initState = false;
+				CheckUserIconFiles();
+				return false;
+			}
+
+			var settings = data.split('\n');
+			settings = settings.filter(Boolean);
+			let linesCount = settings.length;
+			let theVarName, commentStart, theMsge="";
+			let theSetting, settingName, settingValue="";
+
+			for (var i = 0; i < linesCount; i++)
+			{
+				theVarName = settings[i].match(`^${customUserIcons.varPrefix}`);
+				commentStart = settings[i].indexOf('#');
+				if (commentStart != -1 || theVarName == null) {continue;}
+				theSetting = settings[i].split('=');
+				settingName = theSetting[0];
+				settingValue = theSetting[1];
+
+				switch (settingName)
+				{
+					case `${customUserIcons.varPrefix}SAVED_DIR`:
+						if (settingValue != "" && settingValue != "NONE")
+						{ customUserIcons.theUserIconsSavedDir = settingValue; }
+						break;
+
+					case `${customUserIcons.varPrefix}FOUND`:
+						if (settingValue == "TRUE")
+						{ customUserIcons.enableBackupButton = true; }
+						else
+						{ customUserIcons.enableBackupButton = false; }
+						break;
+
+					case `${customUserIcons.varPrefix}RESTD`:
+						if (settingValue == "NONE")
+						{ customUserIcons.enableRestoreButton = false; }
+						else
+						{ customUserIcons.enableRestoreButton = true; }
+						break;
+
+					case `${customUserIcons.varPrefix}SAVED`:
+						if (settingValue == "NONE")
+						{ customUserIcons.enableRestoreButton = false; }
+						else
+						{ customUserIcons.enableRestoreButton = true; }
+						break;
+				}
+			}
+			WaitMsgPopupBox.CloseMsg();
+			customUserIcons.numTries = 0;
+			customUserIcons.backupOp = false;
+			customUserIcons.restoreOp = false;
+			SetBackUpIconsButtonState (customUserIcons.enableBackupButton);
+			SetRestoreIconsButtonState (customUserIcons.enableRestoreButton);
+		}
+	});
+}
+
+function BackUpUserIconFiles()
+{
+	customUserIcons.numTries = 0;
+	customUserIcons.backupOp = true;
+	customUserIcons.restoreOp = false;
+	SetBackUpIconsButtonState (false);
+	WaitMsgPopupBox.StartMsg (customUserIcons.backupWaitMsg, 10000, false);
+	let actionScriptVal = actionScriptPrefix + 'backupIcons';
+	document.formScriptActions.action_script.value = actionScriptVal;
+	document.formScriptActions.submit();
+	setTimeout(GetCustomUserIconsStatus, 3000);
+}
+
+function RestoreUserIconFiles()
+{
+	customUserIcons.numTries = 0;
+	customUserIcons.backupOp = false;
+	customUserIcons.restoreOp = true;
+	SetRestoreIconsButtonState (false);
+	WaitMsgPopupBox.StartMsg (customUserIcons.getListWaitMsg, 10000, false);
+	let actionScriptVal = actionScriptPrefix + 'restoreIcons_reqList';
+	document.formScriptActions.action_script.value = actionScriptVal;
+	document.formScriptActions.submit();
+	setTimeout(GetCustomUserIconsBackupList, 3000);
+}
+
+function CheckUserIconFiles()
+{
+	let actionScriptVal = actionScriptPrefix + 'checkIcons';
+	document.formScriptActions.action_script.value = actionScriptVal;
+	document.formScriptActions.submit();
+	setTimeout(GetCustomUserIconsConfig, 1000);
+}
+
+/**-------------------------------------**/
 /** Added by Martinski W. [2023-Jan-28] **/
 /**-------------------------------------**/
 function Get_DHCP_LeaseConfig()
@@ -401,25 +1021,25 @@ function Get_DHCP_LeaseConfig()
 	$.ajax({
 		url: '/ext/YazDHCP/DHCP_Lease.htm',
 		dataType: 'text',
-		error: function(xhr){
+		error: function(xhr)
+		{
 			setTimeout(Get_DHCP_LeaseConfig,1000);
 		},
 		success: function(data)
         {
 			var settings = data.split('\n');
 			settings = settings.filter(Boolean);
-			let linesCount=settings.length;
-			let settingName, settingValue;
-			let theVarPrefix, commentstart;
+			let linesCount = settings.length;
+			let theVarName, commentStart;
 			let leaseValue, leaseSeconds;
-			let theSetting;
+			let theSetting, settingName, settingValue;
 			let nvram_DHCP_Lease = '<% nvram_get("dhcp_lease"); %>';
 
 			for (var i = 0; i < linesCount; i++)
 			{
-				theVarPrefix = settings[i].match(/^DHCP_LEASE=/);
-				commentstart = settings[i].indexOf('#');
-				if (commentstart != -1 || theVarPrefix == null) {continue;}
+				theVarName = settings[i].match(/^DHCP_LEASE=/);
+				commentStart = settings[i].indexOf('#');
+				if (commentStart != -1 || theVarName == null) {continue;}
 				theSetting = settings[i].split('=');
 				settingName = theSetting[0];
 				settingValue = theSetting[1];
@@ -441,13 +1061,14 @@ function Get_DHCP_LeaseConfig()
 var manually_dhcp_sort_type = 0;//0:increase, 1:decrease
 
 /**----------------------------------------**/
-/** Modified by Martinski W. [2023-Jan-28] **/
+/** Modified by Martinski W. [2023-Jun-14] **/
 /**----------------------------------------**/
 function initial(){
 	show_menu();
 	document.getElementById("GWStatic").innerHTML = "Manually Assigned IP addresses in the DHCP scope (Max Limit: )" + maxnumrows;
 	LoadCustomSettings();
 	Get_DHCP_LeaseConfig();
+	GetCustomUserIconsConfig();
 	ScriptUpdateLayout();
 	AddEventHandlers();
 	//id="faq" href="https://www.asus.com/support/FAQ/1000906"
@@ -469,7 +1090,23 @@ function initial(){
 	
 	document.form.sip_server.disabled = true;
 	document.form.sip_server.parentNode.parentNode.style.display = "none";
-	
+
+	/**---------------------------------------**/
+	/** Ported by Martinski W. [2023-Jun-14]  **/
+	/** For IPv6 DNS support (from 388.X ASP) **/
+	/**---------------------------------------**/
+	if (typeof IPv6_support != 'undefined' && IPv6_support != null &&
+	    IPv6_support && ipv6_proto_orig != "disabled")
+	{
+		document.form.ipv6_dns1_x.disabled = false;
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "";
+	}
+	else
+	{
+		document.form.ipv6_dns1_x.disabled = true;
+		document.form.ipv6_dns1_x.parentNode.parentNode.style.display = "none";
+	}
+
 	if(vpn_fusion_support){
 		vpnc_dev_policy_list_array = parse_vpnc_dev_policy_list('<% nvram_char_to_ascii("","vpnc_dev_policy_list"); %>');
 		vpnc_dev_policy_list_array_ori = vpnc_dev_policy_list_array.slice();
@@ -529,15 +1166,16 @@ function update_status(){
 
 function CheckUpdate(){
 	showhide("btnChkUpdate", false);
-	document.formScriptActions.action_script.value="start_YazDHCPcheckupdate"
+	let actionScriptVal = actionScriptPrefix + 'checkupdate';
+	document.formScriptActions.action_script.value = actionScriptVal;
 	document.formScriptActions.submit();
 	document.getElementById("imgChkUpdate").style.display = "";
 	setTimeout(update_status, 2000);
 }
 
 function DoUpdate(){
-	var action_script_tmp = "start_YazDHCPdoupdate";
-	document.form.action_script.value = action_script_tmp;
+	let actionScriptVal = actionScriptPrefix + 'doupdate';
+	document.form.action_script.value = actionScriptVal;
 	var restart_time = 10;
 	document.form.action_wait.value = restart_time;
 	showLoading();
@@ -1009,6 +1647,9 @@ function validate_dhcp_range(ip_obj){
 	return 1;
 }
 
+/**----------------------------------------**/
+/** Modified by Martinski W. [2023-Jun-14] **/
+/**----------------------------------------**/
 function validForm(){
 	var re = new RegExp('^[a-zA-Z0-9][a-zA-Z0-9\.\-]*[a-zA-Z0-9]$','gi');
 	if((!re.test(document.form.lan_domain.value) || document.form.lan_domain.value.indexOf("asuscomm.com") > 0) && document.form.lan_domain.value != ""){
@@ -1064,6 +1705,17 @@ function validForm(){
 	//Filtering ip address with leading zero
 	document.form.dhcp_start.value = ipFilterZero(document.form.dhcp_start.value);
 	document.form.dhcp_end.value = ipFilterZero(document.form.dhcp_end.value);
+
+	/**---------------------------------------**/
+	/** Ported by Martinski W. [2023-Jun-14]  **/
+	/** For IPv6 DNS support (from 388.X ASP) **/
+	/**---------------------------------------**/
+	if (typeof IPv6_support != 'undefined' && IPv6_support != null &&
+	    IPv6_support && ipv6_proto_orig != "disabled")
+	{
+		if (document.form.ipv6_dns1_x.value != "")
+		{ if (!validator.isLegal_ipv6(document.form.ipv6_dns1_x)) return false; }
+	}
 	return true;
 }
 
@@ -1386,6 +2038,18 @@ function sortClientIP(){
 <input type="file" name="fileImportDHCPClients" id="fileImportDHCPClients" accept=".csv" onchange="SelectedFile();" >
 </td>
 </tr>
+<!--
+**-------------------------------------**
+** Added by Martinski W. [2023-Apr-22] **
+**-------------------------------------**
+-->
+<tr>
+<th width="20%">Back up & Restore custom user icons</th>
+<td>
+<input type="button" class="button_gen" style="margin-left:0px;" onclick="BackUpUserIconFiles();" value="Back up icons" title="" id="BackupIconsBtn">
+<input type="button" class="button_gen" style="margin-left:30px;" onclick="RestoreUserIconFiles();" value="Restore icons" title="" id="RestoreIconsBtn">
+</td>
+</tr>
 </table>
 <div style="line-height:10px;">&nbsp;</div>
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable SettingsTable">
@@ -1481,6 +2145,19 @@ function sortClientIP(){
 <td>
 <input type="radio" value="1" name="dhcpd_dns_router" class="content_input_fd" onclick="return change_common_radio(this, 'LANHostConfig', 'dhcpd_dns_router', '1')" <% nvram_match("dhcpd_dns_router", "1", "checked"); %>>Yes
 <input type="radio" value="0" name="dhcpd_dns_router" class="content_input_fd" onclick="return change_common_radio(this, 'LANHostConfig', 'dhcpd_dns_router', '0')" <% nvram_match("dhcpd_dns_router", "0", "checked"); %>>No
+</td>
+</tr>
+
+<!--
+**---------------------------------------**
+** Ported by Martinski W. [2023-Jun-13]  **
+** For IPv6 DNS support (from 388.X ASP) **
+**---------------------------------------**
+-->
+<tr style="display:none;">
+<th width="200">IPv6 DNS Server</th>
+<td>
+<input type="text" maxlength="39" class="input_32_table" name="ipv6_dns1_x" value="<% nvram_get("ipv6_dns1_x"); %>" autocorrect="off" autocapitalize="off">
 </td>
 </tr>
 
